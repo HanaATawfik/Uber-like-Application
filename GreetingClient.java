@@ -33,8 +33,13 @@ public class GreetingClient {
 
                 // Send sign-up data to server
                 DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
-                outToServer.writeUTF("SignUp:" + email + ":" + username + ":" + password);
-            } else if (choice == 2) {
+                outToServer.writeUTF(String.valueOf(choice));
+                outToServer.writeUTF(String.valueOf(email));
+                outToServer.writeUTF(username);
+                outToServer.writeUTF(password);
+            }
+
+            else if (choice == 2) {
                 System.out.println("You chose to Log in");
                 System.out.println("Please enter your username:");
                 String username = buffReader.readLine();
@@ -51,9 +56,9 @@ public class GreetingClient {
             }
 
 
-            InputStream inFromServer = client.getInputStream();
-            DataInputStream in = new DataInputStream(inFromServer);
-            System.out.println("Server says " + in.readUTF());
+       //     InputStream inFromServer = client.getInputStream();
+         //   DataInputStream in = new DataInputStream(inFromServer);
+         //   System.out.println("Server says " + in.readUTF());
 
 
             client.close();

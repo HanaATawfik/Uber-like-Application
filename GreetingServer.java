@@ -15,13 +15,35 @@ public class GreetingServer extends Thread {
             try {
                System.out.println("Waiting for client on port " +
                       serverSocket.getLocalPort() + "...");
+
                 Socket server = serverSocket.accept();
 
                 System.out.println("Just connected to " + server.getRemoteSocketAddress());
 
                 DataInputStream in = new DataInputStream(server.getInputStream());
-                System.out.println(in.readUTF());
+                int choice = Integer.parseInt(in.readUTF());
 
+                if (choice==1)
+                {
+                    System.out.println("Client chose to Sign up");
+                    String email = in.readUTF();
+                    String username = in.readUTF();
+                    String password = in.readUTF();
+                    System.out.println("Received Sign up data: Email: " + email + ", Username: " + username + ", Password: " + password);
+                }
+                else if (choice==2)
+                {
+                    System.out.println("Client chose to Log in");
+                    String loginData = in.readUTF();
+                    String[] parts = loginData.split(":");
+                    String username = parts[1];
+                    String password = parts[2];
+                    System.out.println("Received Log in data: Username: " + username + ", Password: " + password);
+                }
+                else
+                {
+                    System.out.println("Invalid choice received from client.");
+                }
 
                 DataOutputStream out = new DataOutputStream(server.getOutputStream());
                 out.writeUTF("Thank you for connecting to " + server.getLocalSocketAddress()

@@ -15,47 +15,107 @@ public class GreetingClient {
 
             System.out.println("Just connected to " + client.getRemoteSocketAddress());
 
-            System.out.println("Please choose whether you want to Sign up or Log in by either entering 1 or 2");
-            System.out.println("1. Sign up");
-            System.out.println("2. Log in");
+            System.out.println("Please choose whether you are a Customer or a Driver by either entering 1 or 2");
+            System.out.println("1. Customer");
+            System.out.println("2. Driver");
 
-            BufferedReader buffReader = new BufferedReader(new InputStreamReader(System.in));
-            int choice = Integer.parseInt(buffReader.readLine());
+            BufferedReader mainbuffReader = new BufferedReader(new InputStreamReader(System.in));
+            int mainchoice = Integer.parseInt(mainbuffReader.readLine());
 
-            if (choice == 1) {
-                System.out.println("You chose to Sign up");
-                System.out.println("Please enter your email:");
-                String email = buffReader.readLine();
-                System.out.println("Please enter your username:");
-                String username = buffReader.readLine();
-                System.out.println("Please enter your password:");
-                String password = buffReader.readLine();
+            if (mainchoice == 1) {
+                System.out.println("You chose Customer");
+                System.out.println("Please choose whether you want to Sign up or Log in by either entering 1 or 2");
+                System.out.println("1. Sign up");
+                System.out.println("2. Log in");
 
-                // Send sign-up data to server
-                DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
-                outToServer.writeUTF(String.valueOf(choice));
-                outToServer.writeUTF(String.valueOf(email));
-                outToServer.writeUTF(username);
-                outToServer.writeUTF(password);
+                BufferedReader buffReader = new BufferedReader(new InputStreamReader(System.in));
+                int choice = Integer.parseInt(buffReader.readLine());
+
+                if (choice == 1) {
+                    System.out.println("You chose to Sign up");
+                    System.out.println("Please enter your email:");
+                    String email = buffReader.readLine();
+                    System.out.println("Please enter your username:");
+                    String username = buffReader.readLine();
+                    System.out.println("Please enter your password:");
+                    String password = buffReader.readLine();
+
+                    // Send sign-up data to server
+                    DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
+                    outToServer.writeUTF(String.valueOf(choice));
+                    outToServer.writeUTF(String.valueOf(email));
+                    outToServer.writeUTF(username);
+                    outToServer.writeUTF(password);
+                }
+
+                else if (choice == 2) {
+                    System.out.println("You chose to Log in");
+                    System.out.println("Please enter your username:");
+                    String username = buffReader.readLine();
+                    System.out.println("Please enter your password:");
+                    String password = buffReader.readLine();
+
+                    // Send login data to server
+                    DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
+                    outToServer.writeUTF(String.valueOf(choice));
+                    outToServer.writeUTF(username);
+                    outToServer.writeUTF(password);
+                } else {
+                    System.out.println("Invalid choice. Exiting.");
+                    client.close();
+                    return;
+                }
             }
+            else if (mainchoice == 2) {
+                System.out.println("You chose Driver");
+                System.out.println("Please choose whether you want to Sign up or Log in by either entering 1 or 2");
+                System.out.println("1. Sign up");
+                System.out.println("2. Log in");
 
-            else if (choice == 2) {
-                System.out.println("You chose to Log in");
-                System.out.println("Please enter your username:");
-                String username = buffReader.readLine();
-                System.out.println("Please enter your password:");
-                String password = buffReader.readLine();
+                BufferedReader buffReader = new BufferedReader(new InputStreamReader(System.in));
+                int choice = Integer.parseInt(buffReader.readLine());
 
-                // Send login data to server
-                DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
-                outToServer.writeUTF(String.valueOf(choice));
-                outToServer.writeUTF(username);
-                outToServer.writeUTF(password);
-            } else {
+                if (choice == 1) {
+                    System.out.println("You chose to Sign up");
+                    System.out.println("Please enter your email:");
+                    String email = buffReader.readLine();
+                    System.out.println("Please enter your username:");
+                    String username = buffReader.readLine();
+                    System.out.println("Please enter your password:");
+                    String password = buffReader.readLine();
+
+                    // Send sign-up data to server
+                    DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
+                    outToServer.writeUTF(String.valueOf(choice));
+                    outToServer.writeUTF(String.valueOf(email));
+                    outToServer.writeUTF(username);
+                    outToServer.writeUTF(password);
+                }
+
+                else if (choice == 2) {
+                    System.out.println("You chose to Log in");
+                    System.out.println("Please enter your username:");
+                    String username = buffReader.readLine();
+                    System.out.println("Please enter your password:");
+                    String password = buffReader.readLine();
+
+                    // Send login data to server
+                    DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
+                    outToServer.writeUTF(String.valueOf(choice));
+                    outToServer.writeUTF(username);
+                    outToServer.writeUTF(password);
+                } else {
+                    System.out.println("Invalid choice. Exiting.");
+                    client.close();
+                    return;
+                }
+            }
+            else {
                 System.out.println("Invalid choice. Exiting.");
                 client.close();
                 return;
             }
+
 
 
        //     InputStream inFromServer = client.getInputStream();

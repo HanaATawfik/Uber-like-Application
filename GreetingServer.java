@@ -20,33 +20,72 @@ public class GreetingServer extends Thread {
 
                 System.out.println("Just connected to " + server.getRemoteSocketAddress());
 
-                DataInputStream in = new DataInputStream(server.getInputStream());
-                int choice = Integer.parseInt(in.readUTF());
+                DataInputStream mainin = new DataInputStream(server.getInputStream());
+                int mainchoice = Integer.parseInt(mainin.readUTF());
 
-                if (choice==1)
-                {
-                    System.out.println("Client chose to Sign up");
-                    String email = in.readUTF();
-                    String username = in.readUTF();
-                    String password = in.readUTF();
-                    System.out.println("Received Sign up data: Email: " + email + ", Username: " + username + ", Password: " + password);
-                }
-                else if (choice==2)
-                {
-                    System.out.println("Client chose to Log in");
-                    //String email = in.readUTF();
-                    String username = in.readUTF();
-                    String password = in.readUTF();
-                   // String loginData = in.readUTF();
-                   // String[] parts = loginData.split(":");
-                   // String username = parts[1];
-                   // String password = parts[2];
-                    System.out.println("Received Log in data: Username: " + username + ", Password: " + password);
-                }
-                else
-                {
+                if (mainchoice == 1) {
+                    System.out.println("Client chose Customer");
+                    DataInputStream in = new DataInputStream(server.getInputStream());
+                    int choice = Integer.parseInt(in.readUTF());
+
+                    if (choice==1)
+                    {
+                        System.out.println("Client chose to Sign up");
+                        String email = in.readUTF();
+                        String username = in.readUTF();
+                        String password = in.readUTF();
+                        System.out.println("Received Sign up data: Email: " + email + ", Username: " + username + ", Password: " + password);
+                    }
+                    else if (choice==2)
+                    {
+                        System.out.println("Client chose to Log in");
+                        //String email = in.readUTF();
+                        String username = in.readUTF();
+                        String password = in.readUTF();
+                        // String loginData = in.readUTF();
+                        // String[] parts = loginData.split(":");
+                        // String username = parts[1];
+                        // String password = parts[2];
+                        System.out.println("Received Log in data: Username: " + username + ", Password: " + password);
+                    }
+                    else
+                    {
+                        System.out.println("Invalid choice received from client.");
+                    }
+                } else if (mainchoice == 2) {
+                    System.out.println("Client chose Driver");
+                    DataInputStream in = new DataInputStream(server.getInputStream());
+                    int choice = Integer.parseInt(in.readUTF());
+
+                    if (choice==1)
+                    {
+                        System.out.println("Client chose to Sign up");
+                        String email = in.readUTF();
+                        String username = in.readUTF();
+                        String password = in.readUTF();
+                        System.out.println("Received Sign up data: Email: " + email + ", Username: " + username + ", Password: " + password);
+                    }
+                    else if (choice==2)
+                    {
+                        System.out.println("Client chose to Log in");
+                        //String email = in.readUTF();
+                        String username = in.readUTF();
+                        String password = in.readUTF();
+                        // String loginData = in.readUTF();
+                        // String[] parts = loginData.split(":");
+                        // String username = parts[1];
+                        // String password = parts[2];
+                        System.out.println("Received Log in data: Username: " + username + ", Password: " + password);
+                    }
+                    else
+                    {
+                        System.out.println("Invalid choice received from client.");
+                    }                }
+                else {
                     System.out.println("Invalid choice received from client.");
                 }
+
+
 
                 DataOutputStream out = new DataOutputStream(server.getOutputStream());
                 out.writeUTF("Thank you for connecting to " + server.getLocalSocketAddress()
@@ -54,7 +93,8 @@ public class GreetingServer extends Thread {
 
                 server.close();
 
-            } catch (SocketTimeoutException s) {
+            }
+            catch (SocketTimeoutException s) {
                 System.out.println("Socket timed out!");
                 break;
             } catch (IOException e) {

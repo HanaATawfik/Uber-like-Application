@@ -1,116 +1,151 @@
-// File Name GreetingServer.java
-import java.net.*;
-import java.io.*;
+// File Name: GreetingServer.java
+                import java.io.DataInputStream;
+                import java.io.DataOutputStream;
+                import java.io.IOException;
+                import java.net.ServerSocket;
+                import java.net.Socket;
+                import java.net.SocketTimeoutException;
 
-public class GreetingServer extends Thread {
-    private ServerSocket serverSocket;
+                /**
+                 * Server application that handles client connections
+                 * and processes customer/driver signup and login requests.
+                 */
+                public class GreetingServer extends Thread {
+                    private ServerSocket serverSocket;
+                    private static final int TIMEOUT = 100000;
 
-    public GreetingServer(int port) throws IOException {
-        serverSocket = new ServerSocket(port);
-        serverSocket.setSoTimeout(100000);
-    }
+                    /**
+                     * Constructor to initialize server on specified port.
+                     *
+                     * @param port The port number to listen on
+                     * @throws IOException If server socket cannot be created
+                     */
+                    public GreetingServer(int port) throws IOException {
+                        serverSocket = new ServerSocket(port);
+                        serverSocket.setSoTimeout(TIMEOUT);
+                    }
 
-    public void run() {
-        while(true) {
-            try {
-               System.out.println("Waiting for client on port " +
-                      serverSocket.getLocalPort() + "...");
+                    @Override
+                    public void run() {
+                        while (true) {
+                            try {
+                                System.out.println("Waiting for client on port " +
+                                        serverSocket.getLocalPort() + "...");
 
-                Socket server = serverSocket.accept();
+                                Socket server = serverSocket.accept();
+                                System.out.println("Just connected to " + server.getRemoteSocketAddress());
 
-                System.out.println("Just connected to " + server.getRemoteSocketAddress());
+                                // Process client request
+                                DataInputStream mainIn = new DataInputStream(server.getInputStream());
+                                int mainChoice = Integer.parseInt(mainIn.readUTF());
 
-                DataInputStream mainin = new DataInputStream(server.getInputStream());
-                int mainchoice = Integer.parseInt(mainin.readUTF());
+                                if (mainChoice == 1) {
+                                    handleCustomerRequest(server);
+                                } else if (mainChoice == 2) {
+                                    handleDriverRequest(server);
+                                } else {
+                                    System.out.println("Invalid choice received from client.");
+                                }
 
-                if (mainchoice == 1) {
-                    System.out.println("Client chose Customer");
-                    DataInputStream in = new DataInputStream(server.getInputStream());
-                    int choice = Integer.parseInt(in.readUTF());
+                                // Send response to client
+                                DataOutputStream out = new DataOutputStream(server.getOutputStream());
+                                out.writeUTF("Thank you for connecting to " + server.getLocalSocketAddress()
+                                        + "\nGoodbye!");
 
-                    if (choice==1)
-                    {
+                                server.close();
+                            } catch (SocketTimeoutException s) {
+                                System.out.println("Socket timed out!");
+                                break;
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                                break;
+                            }
+                        }
+                    }
+
+                    /**
+                     * Handle customer signup or login requests.
+                     *
+                     * @param server The client socket
+                     * @throws IOException If there's an error reading from socket
+                     */
+                    private void handleCustomerRequest(Socket server) throws IOException {
+                        System.out.println("Client chose Customer");
+                        DataInputStream in = new DataInputStream(server.getInputStream());
+                        int choice = Integer.parseInt(in.readUTF());
+
+                        if (choice == 1) {
+                            processSignup(in);
+                        } else if (choice == 2) {
+                            processLogin(in);
+                        } else {
+                            System.out.println("Invalid choice received from client.");
+                        }
+                    }
+
+                    /**
+                     * Handle driver signup or login requests.
+                     *
+                     * @param server The client socket
+                     * @throws IOException If there's an error reading from socket
+                     */
+                    private void handleDriverRequest(Socket server) throws IOException {
+                        System.out.println("Client chose Driver");
+                        DataInputStream in = new DataInputStream(server.getInputStream());
+                        int choice = Integer.parseInt(in.readUTF());
+
+                        if (choice == 1) {
+                            processSignup(in);
+                        } else if (choice == 2) {
+                            processLogin(in);
+                        } else {
+                            System.out.println("Invalid choice received from client.");
+                        }
+                    }
+
+                    /**
+                     * Process user signup data.
+                     *
+                     * @param in DataInputStream to read user data
+                     * @throws IOException If there's an error reading from stream
+                     */
+                    private void processSignup(DataInputStream in) throws IOException {
                         System.out.println("Client chose to Sign up");
                         String email = in.readUTF();
                         String username = in.readUTF();
                         String password = in.readUTF();
-                        System.out.println("Received Sign up data: Email: " + email + ", Username: " + username + ", Password: " + password);
+                        System.out.println("Received Sign up data: Email: " + email +
+                                ", Username: " + username + ", Password: " + password);
                     }
-                    else if (choice==2)
-                    {
-                        System.out.println("Client chose to Log in");
-                        //String email = in.readUTF();
-                        String username = in.readUTF();
-                        String password = in.readUTF();
-                        // String loginData = in.readUTF();
-                        // String[] parts = loginData.split(":");
-                        // String username = parts[1];
-                        // String password = parts[2];
-                        System.out.println("Received Log in data: Username: " + username + ", Password: " + password);
-                    }
-                    else
-                    {
-                        System.out.println("Invalid choice received from client.");
-                    }
-                } else if (mainchoice == 2) {
-                    System.out.println("Client chose Driver");
-                    DataInputStream in = new DataInputStream(server.getInputStream());
-                    int choice = Integer.parseInt(in.readUTF());
 
-                    if (choice==1)
-                    {
-                        System.out.println("Client chose to Sign up");
-                        String email = in.readUTF();
-                        String username = in.readUTF();
-                        String password = in.readUTF();
-                        System.out.println("Received Sign up data: Email: " + email + ", Username: " + username + ", Password: " + password);
-                    }
-                    else if (choice==2)
-                    {
+                    /**
+                     * Process user login data.
+                     *
+                     * @param in DataInputStream to read user data
+                     * @throws IOException If there's an error reading from stream
+                     */
+                    private void processLogin(DataInputStream in) throws IOException {
                         System.out.println("Client chose to Log in");
-                        //String email = in.readUTF();
                         String username = in.readUTF();
                         String password = in.readUTF();
-                        // String loginData = in.readUTF();
-                        // String[] parts = loginData.split(":");
-                        // String username = parts[1];
-                        // String password = parts[2];
-                        System.out.println("Received Log in data: Username: " + username + ", Password: " + password);
+                        System.out.println("Received Log in data: Username: " + username +
+                                ", Password: " + password);
                     }
-                    else
-                    {
-                        System.out.println("Invalid choice received from client.");
-                    }                }
-                else {
-                    System.out.println("Invalid choice received from client.");
+
+                    public static void main(String[] args) {
+                        if (args.length < 1) {
+                            System.out.println("Usage: java GreetingServer <port>");
+                            return;
+                        }
+
+                        try {
+                            int port = Integer.parseInt(args[0]);
+                            Thread t = new GreetingServer(port);
+                            t.start();
+                        } catch (NumberFormatException e) {
+                            System.out.println("Error: Port must be a valid number");
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
                 }
-
-
-
-                DataOutputStream out = new DataOutputStream(server.getOutputStream());
-                out.writeUTF("Thank you for connecting to " + server.getLocalSocketAddress()
-                    + "\nGoodbye!");
-
-                server.close();
-
-            }
-            catch (SocketTimeoutException s) {
-                System.out.println("Socket timed out!");
-                break;
-            } catch (IOException e) {
-                e.printStackTrace();
-                break;
-            }
-        }
-    }
-
-    public static void main(String [] args) {
-        int port = Integer.parseInt(args[0]);
-        try {
-            Thread t = new GreetingServer(port);
-            t.start();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-}

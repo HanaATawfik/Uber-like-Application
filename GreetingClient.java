@@ -1,57 +1,168 @@
-// File Name GreetingClient.java
-import java.net.*;
-import java.io.*;
-import java.util.Scanner;
+// File Name: GreetingClient.java
+            import java.io.BufferedReader;
+            import java.io.DataOutputStream;
+            import java.io.IOException;
+            import java.io.InputStreamReader;
+            import java.net.Socket;
 
-public class GreetingClient {
+            /**
+             * Client application that connects to a server and handles
+             * customer/driver signup and login functionality.
+             */
+            public class GreetingClient {
 
-    public static void main(String [] args) {
-        String serverName = args[0];
-        int port = Integer.parseInt(args[1]);
-        try {
-           System.out.println("Connecting to " + serverName + " on port " + port);
+                /**
+                 * Main method to run the client application.
+                 *
+                 * @param args Command line arguments: [serverName, port]
+                 */
+                public static void main(String[] args) {
+                    // Validate command line arguments
+                    if (args.length < 2) {
+                        System.out.println("Usage: java GreetingClient <server> <port>");
+                        return;
+                    }
 
-            Socket client = new Socket(serverName, port);
+                    String serverName = args[0];
+                    int port;
 
-            System.out.println("Just connected to " + client.getRemoteSocketAddress());
+                    try {
+                        port = Integer.parseInt(args[1]);
+                    } catch (NumberFormatException e) {
+                        System.out.println("Error: Port must be a valid number");
+                        return;
+                    }
 
-            System.out.println("Please choose whether you are a Customer or a Driver by either entering 1 or 2");
-            System.out.println("1. Customer");
-            System.out.println("2. Driver");
+                    try {
+                        System.out.println("Connecting to " + serverName + " on port " + port);
+                        Socket client = new Socket(serverName, port);
+                        System.out.println("Just connected to " + client.getRemoteSocketAddress());
 
-            BufferedReader mainbuffReader = new BufferedReader(new InputStreamReader(System.in));
-            int mainchoice = Integer.parseInt(mainbuffReader.readLine());
+                        // Display main menu and get user choice
+                        System.out.println("Please choose whether you are a Customer or a Driver by either entering 1 or 2");
+                        System.out.println("1. Customer");
+                        System.out.println("2. Driver");
 
-            if (mainchoice == 1) {
-                System.out.println("You chose Customer");
-                System.out.println("Please choose whether you want to Sign up or Log in by either entering 1 or 2");
-                System.out.println("1. Sign up");
-                System.out.println("2. Log in");
+                        BufferedReader mainBuffReader = new BufferedReader(new InputStreamReader(System.in));
+                        int mainChoice = Integer.parseInt(mainBuffReader.readLine());
 
-                BufferedReader buffReader = new BufferedReader(new InputStreamReader(System.in));
-                int choice = Integer.parseInt(buffReader.readLine());
+                        // Send main choice to server
+                        DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
+                        outToServer.writeUTF(String.valueOf(mainChoice));
 
-                if (choice == 1) {
+                        if (mainChoice == 1) {
+                            handleCustomer(client);
+                        } else if (mainChoice == 2) {
+                            handleDriver(client);
+                        } else {
+                            System.out.println("Invalid choice. Exiting.");
+                            client.close();
+                            return;
+                        }
+
+                        // Commented out code for receiving server response
+                        // InputStream inFromServer = client.getInputStream();
+                        // DataInputStream in = new DataInputStream(inFromServer);
+                        // System.out.println("Server says " + in.readUTF());
+
+                        client.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                /**
+                 * Handle Customer signup or login.
+                 *
+                 * @param client Socket connection to server
+                 * @throws IOException If there's an error with I/O operations
+                 */
+                private static void handleCustomer(Socket client) throws IOException {
+                    System.out.println("You chose Customer");
+                    System.out.println("Please choose whether you want to Sign up or Log in by either entering 1 or 2");
+                    System.out.println("1. Sign up");
+                    System.out.println("2. Log in");
+
+                    BufferedReader buffReader = new BufferedReader(new InputStreamReader(System.in));
+                    int choice = Integer.parseInt(buffReader.readLine());
+
+                    if (choice == 1) {
+                        handleSignup(client, buffReader, choice);
+                    } else if (choice == 2) {
+                        handleLogin(client, buffReader, choice);
+                    } else {
+                        System.out.println("Invalid choice. Exiting.");
+                        client.close();
+                    }
+                }
+
+                /**
+                 * Handle Driver signup or login.
+                 *
+                 * @param client Socket connection to server
+                 * @throws IOException If there's an error with I/O operations
+                 */
+                private static void handleDriver(Socket client) throws IOException {
+                    System.out.println("You chose Driver");
+                    System.out.println("Please choose whether you want to Sign up or Log in by either entering 1 or 2");
+                    System.out.println("1. Sign up");
+                    System.out.println("2. Log in");
+
+                    BufferedReader buffReader = new BufferedReader(new InputStreamReader(System.in));
+                    int choice = Integer.parseInt(buffReader.readLine());
+
+                    if (choice == 1) {
+                        handleSignup(client, buffReader, choice);
+                    } else if (choice == 2) {
+                        handleLogin(client, buffReader, choice);
+                    } else {
+                        System.out.println("Invalid choice. Exiting.");
+                        client.close();
+                    }
+                }
+
+                /**
+                 * Handle signup process.
+                 *
+                 * @param client Socket connection to server
+                 * @param buffReader BufferedReader for reading user input
+                 * @param choice User's choice (1 for signup)
+                 * @throws IOException If there's an error with I/O operations
+                 */
+                private static void handleSignup(Socket client, BufferedReader buffReader, int choice) throws IOException {
                     System.out.println("You chose to Sign up");
+
                     System.out.println("Please enter your email:");
                     String email = buffReader.readLine();
+
                     System.out.println("Please enter your username:");
                     String username = buffReader.readLine();
+
                     System.out.println("Please enter your password:");
                     String password = buffReader.readLine();
 
-                    // Send sign-up data to server
+                    // Send signup data to server
                     DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
                     outToServer.writeUTF(String.valueOf(choice));
-                    outToServer.writeUTF(String.valueOf(email));
+                    outToServer.writeUTF(email);
                     outToServer.writeUTF(username);
                     outToServer.writeUTF(password);
                 }
 
-                else if (choice == 2) {
+                /**
+                 * Handle login process.
+                 *
+                 * @param client Socket connection to server
+                 * @param buffReader BufferedReader for reading user input
+                 * @param choice User's choice (2 for login)
+                 * @throws IOException If there's an error with I/O operations
+                 */
+                private static void handleLogin(Socket client, BufferedReader buffReader, int choice) throws IOException {
                     System.out.println("You chose to Log in");
+
                     System.out.println("Please enter your username:");
                     String username = buffReader.readLine();
+
                     System.out.println("Please enter your password:");
                     String password = buffReader.readLine();
 
@@ -60,72 +171,5 @@ public class GreetingClient {
                     outToServer.writeUTF(String.valueOf(choice));
                     outToServer.writeUTF(username);
                     outToServer.writeUTF(password);
-                } else {
-                    System.out.println("Invalid choice. Exiting.");
-                    client.close();
-                    return;
                 }
             }
-            else if (mainchoice == 2) {
-                System.out.println("You chose Driver");
-                System.out.println("Please choose whether you want to Sign up or Log in by either entering 1 or 2");
-                System.out.println("1. Sign up");
-                System.out.println("2. Log in");
-
-                BufferedReader buffReader = new BufferedReader(new InputStreamReader(System.in));
-                int choice = Integer.parseInt(buffReader.readLine());
-
-                if (choice == 1) {
-                    System.out.println("You chose to Sign up");
-                    System.out.println("Please enter your email:");
-                    String email = buffReader.readLine();
-                    System.out.println("Please enter your username:");
-                    String username = buffReader.readLine();
-                    System.out.println("Please enter your password:");
-                    String password = buffReader.readLine();
-
-                    // Send sign-up data to server
-                    DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
-                    outToServer.writeUTF(String.valueOf(choice));
-                    outToServer.writeUTF(String.valueOf(email));
-                    outToServer.writeUTF(username);
-                    outToServer.writeUTF(password);
-                }
-
-                else if (choice == 2) {
-                    System.out.println("You chose to Log in");
-                    System.out.println("Please enter your username:");
-                    String username = buffReader.readLine();
-                    System.out.println("Please enter your password:");
-                    String password = buffReader.readLine();
-
-                    // Send login data to server
-                    DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
-                    outToServer.writeUTF(String.valueOf(choice));
-                    outToServer.writeUTF(username);
-                    outToServer.writeUTF(password);
-                } else {
-                    System.out.println("Invalid choice. Exiting.");
-                    client.close();
-                    return;
-                }
-            }
-            else {
-                System.out.println("Invalid choice. Exiting.");
-                client.close();
-                return;
-            }
-
-
-
-       //     InputStream inFromServer = client.getInputStream();
-         //   DataInputStream in = new DataInputStream(inFromServer);
-         //   System.out.println("Server says " + in.readUTF());
-
-
-            client.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-}

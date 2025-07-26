@@ -48,7 +48,9 @@ public class GreetingClient {
 
                 // Send login data to server
                 DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
-                outToServer.writeUTF("Login:" + username + ":" + password);
+                outToServer.writeUTF(String.valueOf(choice));
+                outToServer.writeUTF(username);
+                outToServer.writeUTF(password);
             } else {
                 System.out.println("Invalid choice. Exiting.");
                 client.close();

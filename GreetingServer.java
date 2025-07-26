@@ -34,10 +34,13 @@ public class GreetingServer extends Thread {
                 else if (choice==2)
                 {
                     System.out.println("Client chose to Log in");
-                    String loginData = in.readUTF();
-                    String[] parts = loginData.split(":");
-                    String username = parts[1];
-                    String password = parts[2];
+                    //String email = in.readUTF();
+                    String username = in.readUTF();
+                    String password = in.readUTF();
+                   // String loginData = in.readUTF();
+                   // String[] parts = loginData.split(":");
+                   // String username = parts[1];
+                   // String password = parts[2];
                     System.out.println("Received Log in data: Username: " + username + ", Password: " + password);
                 }
                 else

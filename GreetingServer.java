@@ -5,12 +5,58 @@
                 import java.net.ServerSocket;
                 import java.net.Socket;
                 import java.net.SocketTimeoutException;
+                import java.util.HashMap;
+                import java.util.Hashtable;
 
-                /**
+/**
                  * Server application that handles client connections
                  * and processes customer/driver signup and login requests.
                  */
-                public class GreetingServer extends Thread {
+final class customer {
+    private final String username;
+    private final String email;
+    private final String password;
+
+    public customer(String username,String email, String password) {
+        this.username = username;
+        this.email = email;
+        this.password = password;
+    }
+
+    public String getusername() {
+        return username;
+    }
+    public String getemail() {
+        return email;
+    }
+    public String getpassword() {
+        return password;
+    }
+}
+final class driver {
+    private final String username;
+    private final String email;
+    private final String password;
+
+
+    public driver(String username,String email, String password) {
+        this.username = username;
+        this.email = email;
+        this.password = password;
+    }
+
+    public String getusername() {
+        return username;
+    }
+    public String getemail() {
+        return email;
+    }
+    public String getpassword() {
+        return password;
+    }
+}
+
+public class GreetingServer extends Thread {
                     private ServerSocket serverSocket;
                     private static final int TIMEOUT = 100000;
 
@@ -71,13 +117,14 @@
                      */
                     private void handleCustomerRequest(Socket server) throws IOException {
                         System.out.println("Client chose Customer");
+                        int d=1;
                         DataInputStream in = new DataInputStream(server.getInputStream());
                         int choice = Integer.parseInt(in.readUTF());
 
                         if (choice == 1) {
-                            processSignup(in);
+                            processSignup(d,in);
                         } else if (choice == 2) {
-                            processLogin(in);
+                            processLogin(d,in);
                         } else {
                             System.out.println("Invalid choice received from client.");
                         }
@@ -91,13 +138,14 @@
                      */
                     private void handleDriverRequest(Socket server) throws IOException {
                         System.out.println("Client chose Driver");
+                        int d=2;
                         DataInputStream in = new DataInputStream(server.getInputStream());
                         int choice = Integer.parseInt(in.readUTF());
 
                         if (choice == 1) {
-                            processSignup(in);
+                            processSignup(d,in);
                         } else if (choice == 2) {
-                            processLogin(in);
+                            processLogin(d,in);
                         } else {
                             System.out.println("Invalid choice received from client.");
                         }
@@ -109,13 +157,25 @@
                      * @param in DataInputStream to read user data
                      * @throws IOException If there's an error reading from stream
                      */
-                    private void processSignup(DataInputStream in) throws IOException {
+                    private void processSignup(int d,DataInputStream in) throws IOException {
                         System.out.println("Client chose to Sign up");
-                        String email = in.readUTF();
-                        String username = in.readUTF();
-                        String password = in.readUTF();
-                        System.out.println("Received Sign up data: Email: " + email +
-                                ", Username: " + username + ", Password: " + password);
+                        Hashtable<String, String> ccredentials = new Hashtable<String, String>();
+                        Hashtable<String, String> dcredentials = new Hashtable<String, String>();
+
+                        if (d==1)
+                       {
+                           customer c = new customer(in.readUTF(),in.readUTF(),in.readUTF());
+                           ccredentials.put(c.getemail(),c.getpassword());
+                           System.out.println("Received Sign up data: Email: " + c.getemail() +
+                                   ", Username: " + c.getusername() + ", Password: " + c.getpassword());
+                       }
+                       else
+                       {
+                           driver dr= new driver(in.readUTF(),in.readUTF(),in.readUTF());
+                           dcredentials.put(dr.getemail(),dr.getpassword());
+                           System.out.println("Received Sign up data: Email: " + dr.getemail() +
+                                   ", Username: " + dr.getusername() + ", Password: " + dr.getpassword());
+                       }
                     }
 
                     /**
@@ -124,7 +184,7 @@
                      * @param in DataInputStream to read user data
                      * @throws IOException If there's an error reading from stream
                      */
-                    private void processLogin(DataInputStream in) throws IOException {
+                    private void processLogin(int d,DataInputStream in) throws IOException {
                         System.out.println("Client chose to Log in");
                         String username = in.readUTF();
                         String password = in.readUTF();

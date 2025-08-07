@@ -5,7 +5,6 @@
                 import java.net.ServerSocket;
                 import java.net.Socket;
                 import java.net.SocketTimeoutException;
-                import java.util.HashMap;
                 import java.util.Hashtable;
 
 /**
@@ -16,6 +15,7 @@ final class customer {
     private final String username;
     private final String email;
     private final String password;
+    public Hashtable<String, customer> ccredentials = new Hashtable<String, customer>();
 
     public customer(String username,String email, String password) {
         this.username = username;
@@ -32,11 +32,16 @@ final class customer {
     public String getpassword() {
         return password;
     }
+    public void putccredentials(customer customer) {
+        ccredentials.put(getusername(),customer);
+    }
 }
+
 final class driver {
     private final String username;
     private final String email;
     private final String password;
+   public Hashtable<String, driver> dcredentials = new Hashtable<String, driver>();
 
 
     public driver(String username,String email, String password) {
@@ -53,6 +58,9 @@ final class driver {
     }
     public String getpassword() {
         return password;
+    }
+    public void putdcredentials(driver driver) {
+        dcredentials.put(getusername(),driver);
     }
 }
 
@@ -159,20 +167,20 @@ public class GreetingServer extends Thread {
                      */
                     private void processSignup(int d,DataInputStream in) throws IOException {
                         System.out.println("Client chose to Sign up");
-                        Hashtable<String, String> ccredentials = new Hashtable<String, String>();
-                        Hashtable<String, String> dcredentials = new Hashtable<String, String>();
 
                         if (d==1)
                        {
+                           System.out.println("Customer");
                            customer c = new customer(in.readUTF(),in.readUTF(),in.readUTF());
-                           ccredentials.put(c.getemail(),c.getpassword());
+                           c.putccredentials(c);
                            System.out.println("Received Sign up data: Email: " + c.getemail() +
                                    ", Username: " + c.getusername() + ", Password: " + c.getpassword());
                        }
                        else
                        {
+                           System.out.println("Driver");
                            driver dr= new driver(in.readUTF(),in.readUTF(),in.readUTF());
-                           dcredentials.put(dr.getemail(),dr.getpassword());
+                           dr.putdcredentials(dr);
                            System.out.println("Received Sign up data: Email: " + dr.getemail() +
                                    ", Username: " + dr.getusername() + ", Password: " + dr.getpassword());
                        }
@@ -190,6 +198,26 @@ public class GreetingServer extends Thread {
                         String password = in.readUTF();
                         System.out.println("Received Log in data: Username: " + username +
                                 ", Password: " + password);
+                        if (d==1)
+                        {
+                            System.out.println("Customer");
+                            customer c = new customer(username,null,password);
+                            if (c.ccredentials.containsKey(username) && c.ccredentials.get(username).equals(password)) {
+                                System.out.println("Login successful!");
+                            } else {
+                                System.out.println("Invalid username or password.");
+                            }
+                        }
+                        else
+                        {
+                            System.out.println("Driver");
+                            driver dr= new driver(username,null,password);
+                            if (dr.dcredentials.containsKey(username) && dr.dcredentials.get(username).equals(password)) {
+                                System.out.println("Login successful!");
+                            } else {
+                                System.out.println("Invalid username or password.");
+                            }
+                        }
                     }
 
                     public static void main(String[] args) {

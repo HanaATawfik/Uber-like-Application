@@ -1,9 +1,5 @@
 // File Name: GreetingClient.java
-                    import java.io.BufferedReader;
-                    import java.io.DataInputStream;
-                    import java.io.DataOutputStream;
-                    import java.io.IOException;
-                    import java.io.InputStreamReader;
+                    import java.io.*;
                     import java.net.Socket;
 
                     /**
@@ -73,7 +69,8 @@
                          * @param client Socket connection to server
                          * @throws IOException If there's an error with I/O operations
                          */
-                        private static void handleCustomer(Socket client) throws IOException {
+                        private static <bool> void handleCustomer(Socket client) throws IOException {
+                            boolean isCustomer = true;
                             System.out.println("You chose Customer");
                             System.out.println("Please choose whether you want to Sign up or Log in by either entering 1 or 2");
                             System.out.println("1. Sign up");
@@ -81,11 +78,13 @@
 
                             BufferedReader buffReader = new BufferedReader(new InputStreamReader(System.in));
                             int choice = Integer.parseInt(buffReader.readLine());
+                            DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
+                            outToServer.writeUTF(String.valueOf(choice));
 
                             if (choice == 1) {
-                                handleSignup(client, buffReader, choice);
+                                handleSignup(client, buffReader, isCustomer);
                             } else if (choice == 2) {
-                                handleLogin(client, buffReader, choice);
+                                handleLogin(client, buffReader, isCustomer);
                             } else {
                                 System.out.println("Invalid choice. Exiting.");
                                 client.close();
@@ -106,11 +105,14 @@
 
                             BufferedReader buffReader = new BufferedReader(new InputStreamReader(System.in));
                             int choice = Integer.parseInt(buffReader.readLine());
+                            DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
+                            outToServer.writeUTF(String.valueOf(choice));
 
+                            boolean isCustomer = false;
                             if (choice == 1) {
-                                handleSignup(client, buffReader, choice);
+                                handleSignup(client, buffReader, isCustomer);
                             } else if (choice == 2) {
-                                handleLogin(client, buffReader, choice);
+                                handleLogin(client, buffReader, isCustomer);
                             } else {
                                 System.out.println("Invalid choice. Exiting.");
                                 client.close();
@@ -120,12 +122,12 @@
                         /**
                          * Handle signup process.
                          *
-                         * @param client Socket connection to server
+                         * @param client     Socket connection to server
                          * @param buffReader BufferedReader for reading user input
-                         * @param choice User's choice (1 for signup)
+                         * @param isCustomer
                          * @throws IOException If there's an error with I/O operations
                          */
-                        private static void handleSignup(Socket client, BufferedReader buffReader, int choice) throws IOException {
+                        private static void handleSignup(Socket client, BufferedReader buffReader, boolean isCustomer) throws IOException {
                             System.out.println("You chose to Sign up");
 
                             System.out.println("Please enter your email:");
@@ -139,7 +141,7 @@
 
                             // Send signup data to server
                             DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
-                            outToServer.writeUTF(String.valueOf(choice));
+                           // outToServer.writeUTF(String.valueOf(choice));
                             outToServer.writeUTF(email);
                             outToServer.writeUTF(username);
                             outToServer.writeUTF(password);
@@ -148,17 +150,20 @@
                             DataInputStream inFromServer = new DataInputStream(client.getInputStream());
                             String serverResponse = inFromServer.readUTF();
                             System.out.println("Server response: " + serverResponse);
+                            System.out.println("To Proceed, please log in with your username and password");
+                         //   choice=2;
+                            handleLogin(client, buffReader, isCustomer);
                         }
 
                         /**
                          * Handle login process.
                          *
-                         * @param client Socket connection to server
+                         * @param client     Socket connection to server
                          * @param buffReader BufferedReader for reading user input
-                         * @param choice User's choice (2 for login)
+                         * @param isCustomer
                          * @throws IOException If there's an error with I/O operations
                          */
-                        private static void handleLogin(Socket client, BufferedReader buffReader, int choice) throws IOException {
+                        private static void handleLogin(Socket client, BufferedReader buffReader, boolean isCustomer) throws IOException {
                             System.out.println("You chose to Log in");
 
                             System.out.println("Please enter your username:");
@@ -166,10 +171,9 @@
 
                             System.out.println("Please enter your password:");
                             String password = buffReader.readLine();
-
                             // Send login data to server
                             DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
-                            outToServer.writeUTF(String.valueOf(choice));
+                          //  outToServer.writeUTF(String.valueOf(choice)); ------------------------------------------------------------
                             outToServer.writeUTF(username);
                             outToServer.writeUTF(password);
 
@@ -177,5 +181,52 @@
                             DataInputStream inFromServer = new DataInputStream(client.getInputStream());
                             String serverResponse = inFromServer.readUTF();
                             System.out.println("Server response: " + serverResponse);
+                            if(isCustomer && serverResponse.equals("SUCCESS: Customer login successful"))
+                            {
+                                System.out.println("Welcome customer, " + username + "!");
+                                Menu();
+                            }
+                            else if (isCustomer == false && serverResponse.equals("SUCCESS: Driver login successful"))
+                            {
+                                System.out.println("Welcome driver, " + username + "!");
+                                Menu();
+                            }
+                            else
+                            {
+                                System.out.println("Login failed. Please try again.");
+                            }
+
+                        }
+
+                        private static void Menu() {
+                            System.out.println("Welcome to the Customer Menu!");
+                            System.out.println("1. Request Ride");
+                            System.out.println("2. View ride status");
+                            System.out.println("3. Disconnect");
+                            System.out.println("Please enter your choice:");
+                            try {
+                                BufferedReader menuReader = new BufferedReader(new InputStreamReader(System.in));
+                                int menuChoice = Integer.parseInt(menuReader.readLine());
+                                switch (menuChoice) {
+                                    case 1:
+                                        System.out.println("Requesting ride...");
+                                        // Logic for requesting a ride can be added here
+                                        break;
+                                    case 2:
+                                        System.out.println("Viewing ride status...");
+                                        // Logic for viewing ride status can be added here
+                                        break;
+                                    case 3:
+                                        System.out.println("Disconnecting...");
+                                        // Logic for disconnecting can be added here
+                                        break;
+                                    default:
+                                        System.out.println("Invalid choice. Please try again.");
+                                        Menu(); // Re-display the menu for valid input
+                                        break;
+                                }
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
                         }
                     }

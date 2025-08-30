@@ -65,7 +65,7 @@
 
                 public class GreetingServer extends Thread {
                     private ServerSocket serverSocket;
-                    private static final int TIMEOUT = 100000;
+                    private static final int TIMEOUT = 1000000;
 
                     /**
                      * Constructor to initialize server on specified port.
@@ -75,7 +75,7 @@
                      */
                     public GreetingServer(int port) throws IOException {
                         serverSocket = new ServerSocket(port);
-                        serverSocket.setSoTimeout(TIMEOUT);
+                       serverSocket.setSoTimeout(TIMEOUT);
                     }
 
                     @Override
@@ -118,7 +118,7 @@
                      * @param server The client socket
                      * @throws IOException If there's an error reading from socket
                      */
-                    private void handleCustomerRequest(Socket server) throws IOException {
+                    public void handleCustomerRequest(Socket server) throws IOException {
                         System.out.println("Client chose Customer");
                         int d = 1;
                         DataInputStream in = new DataInputStream(server.getInputStream());
@@ -141,7 +141,7 @@
                      * @param server The client socket
                      * @throws IOException If there's an error reading from socket
                      */
-                    private void handleDriverRequest(Socket server) throws IOException {
+                    public void handleDriverRequest(Socket server) throws IOException {
                         System.out.println("Client chose Driver");
                         int d = 2;
                         DataInputStream in = new DataInputStream(server.getInputStream());
@@ -184,6 +184,7 @@
                                 System.out.println("Received Sign up data: Email: " + c.getemail() +
                                         ", Username: " + c.getusername() + ", Password: " + c.getpassword());
                                 out.writeUTF("SUCCESS: Customer signup successful");
+                                processLogin(d, in, out);
                             }
                         } else {
                             System.out.println("Driver");
@@ -200,6 +201,8 @@
                                 System.out.println("Received Sign up data: Email: " + dr.getemail() +
                                         ", Username: " + dr.getusername() + ", Password: " + dr.getpassword());
                                 out.writeUTF("SUCCESS: Driver signup successful");
+                                processLogin(d, in, out);
+
                             }
                         }
                     }
@@ -223,7 +226,7 @@
                             System.out.println("Customer");
                             if (customer.ccredentials.containsKey(username) &&
                                 customer.ccredentials.get(username).getpassword().equals(password)) {
-                                System.out.println("Login successful!");
+                                System.out.println("Login successful customer!");
                                 out.writeUTF("SUCCESS: Customer login successful");
                             } else {
                                 System.out.println("Invalid username or password.");
@@ -233,7 +236,7 @@
                             System.out.println("Driver");
                             if (driver.dcredentials.containsKey(username) &&
                                 driver.dcredentials.get(username).getpassword().equals(password)) {
-                                System.out.println("Login successful!");
+                                System.out.println("Login successful driver!");
                                 out.writeUTF("SUCCESS: Driver login successful");
                             } else {
                                 System.out.println("Invalid username or password.");

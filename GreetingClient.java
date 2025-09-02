@@ -48,7 +48,10 @@
                                 outToServer.writeUTF(String.valueOf(mainChoice));
 
                                 if (mainChoice == 1) {
-                                    handleCustomer(client);
+                                    if(handleCustomer(client)==true)
+                                    {
+                                        CustomerMenu(client);
+                                    }
                                 } else if (mainChoice == 2) {
                                     handleDriver(client);
                                 } else {
@@ -67,9 +70,10 @@
                          * Handle Customer signup or login.
                          *
                          * @param client Socket connection to server
+                         * @return
                          * @throws IOException If there's an error with I/O operations
                          */
-                        private static <bool> void handleCustomer(Socket client) throws IOException {
+                        public static <bool> boolean handleCustomer(Socket client) throws IOException {
                             boolean isCustomer = true;
                             System.out.println("You chose Customer");
                             System.out.println("Please choose whether you want to Sign up or Log in by either entering 1 or 2");
@@ -88,7 +92,9 @@
                             } else {
                                 System.out.println("Invalid choice. Exiting.");
                                 client.close();
+                                return false;
                             }
+                            return true;
                         }
 
                         /**
@@ -127,7 +133,7 @@
                          * @param isCustomer
                          * @throws IOException If there's an error with I/O operations
                          */
-                        private static void handleSignup(Socket client, BufferedReader buffReader, boolean isCustomer) throws IOException {
+                        public static <bool> boolean handleSignup(Socket client, BufferedReader buffReader, boolean isCustomer) throws IOException {
                             System.out.println("You chose to Sign up");
 
                             System.out.println("Please enter your email:");
@@ -152,7 +158,11 @@
                             System.out.println("Server response: " + serverResponse);
                             System.out.println("To Proceed, please log in with your username and password");
                          //   choice=2;
-                            handleLogin(client, buffReader, isCustomer);
+                           if( handleLogin(client, buffReader, isCustomer))
+                           {
+                                 return true;
+                           }
+                            return false;
                         }
 
                         /**
@@ -163,7 +173,7 @@
                          * @param isCustomer
                          * @throws IOException If there's an error with I/O operations
                          */
-                        private static void handleLogin(Socket client, BufferedReader buffReader, boolean isCustomer) throws IOException {
+                        public static <bool> boolean handleLogin(Socket client, BufferedReader buffReader, boolean isCustomer) throws IOException {
                             System.out.println("You chose to Log in");
 
                             System.out.println("Please enter your username:");
@@ -184,21 +194,41 @@
                             if(isCustomer && serverResponse.equals("SUCCESS: Customer login successful"))
                             {
                                 System.out.println("Welcome customer, " + username + "!");
-                                Menu();
+                                return true;
+                              //  Menu();
                             }
                             else if (isCustomer == false && serverResponse.equals("SUCCESS: Driver login successful"))
                             {
                                 System.out.println("Welcome driver, " + username + "!");
-                                Menu();
+                              //  Menu();
                             }
                             else
                             {
                                 System.out.println("Login failed. Please try again.");
+                                return false;
                             }
-
+                            return true;
                         }
 
-                        private static void Menu() {
+                        private static void handleRideRequest(Socket client) {
+                            System.out.println("Please enter your pickup location:");
+                             BufferedReader rideReader = new BufferedReader(new InputStreamReader(System.in));
+                            try {
+                                String pickupLocation = rideReader.readLine();
+                                System.out.println("Please enter your drop-off location:");
+                                String dropoffLocation = rideReader.readLine();
+                                System.out.println("Ride requested from " + pickupLocation + " to " + dropoffLocation);
+                                // Send data to server
+                                DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
+                                outToServer.writeUTF(pickupLocation);
+                                outToServer.writeUTF(dropoffLocation);
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
+                            // Logic for requesting a ride can be added here
+                        }
+
+                        private static void CustomerMenu(Socket client) {
                             System.out.println("Welcome to the Customer Menu!");
                             System.out.println("1. Request Ride");
                             System.out.println("2. View ride status");
@@ -210,6 +240,7 @@
                                 switch (menuChoice) {
                                     case 1:
                                         System.out.println("Requesting ride...");
+                                        handleRideRequest(client);
                                         // Logic for requesting a ride can be added here
                                         break;
                                     case 2:
@@ -222,7 +253,7 @@
                                         break;
                                     default:
                                         System.out.println("Invalid choice. Please try again.");
-                                        Menu(); // Re-display the menu for valid input
+                                        CustomerMenu(client);
                                         break;
                                 }
                             } catch (IOException e) {

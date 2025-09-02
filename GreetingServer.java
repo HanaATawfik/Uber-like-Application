@@ -64,6 +64,37 @@
                             }
                         }
 
+                        static class Ride {
+                            private final String pickupLocation;
+                            private final String dropLocation;
+                            private final String customerUsername;
+                            private final String driverUsername;
+                            public static Hashtable<String, Ride> rides = new Hashtable<String, Ride>();
+
+                            public Ride(String pickupLocation, String dropLocation, String customerUsername, String driverUsername) {
+                                this.pickupLocation = pickupLocation;
+                                this.dropLocation = dropLocation;
+                                this.customerUsername = customerUsername;
+                                this.driverUsername = driverUsername;
+                            }
+
+                            public String getPickupLocation() {
+                                return pickupLocation;
+                            }
+                            public String getDropLocation() {
+                                return dropLocation;
+                            }
+                            public String getCustomerUsername() {
+                                return customerUsername;
+                            }
+                            public String getDriverUsername() {
+                                return driverUsername;
+                            }
+                            public void putRide(Ride ride) {
+                                rides.put(ride.getCustomerUsername(), ride);
+                            }
+                        }
+
                         /**
                          * Constructor to initialize server on specified port.
                          *

@@ -48,7 +48,7 @@
                                 outToServer.writeUTF(String.valueOf(mainChoice));
 
                                 if (mainChoice == 1) {
-                                    if(handleCustomer(client)==true)
+                                    if(handleCustomer(client))
                                     {
                                         CustomerMenu(client);
                                     }
@@ -222,10 +222,16 @@
                                 DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
                                 outToServer.writeUTF(pickupLocation);
                                 outToServer.writeUTF(dropoffLocation);
+                                System.out.println("Ride request sent to server.");
+                                // Read response from server
+                                DataInputStream inFromServer = new DataInputStream(client.getInputStream());
+                                String serverResponse = inFromServer.readUTF();
+                                System.out.println("Server response: " + serverResponse);
                             } catch (IOException e) {
                                 throw new RuntimeException(e);
                             }
                             // Logic for requesting a ride can be added here
+
                         }
 
                         private static void CustomerMenu(Socket client) {

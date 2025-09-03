@@ -1,7 +1,9 @@
 // File Name: GreetingServer.java
                     import java.io.*;
                     import java.net.*;
-                    import java.util.Hashtable;
+                    import java.util.Iterator;
+                    import java.util.Map;
+                    import java.util.concurrent.ConcurrentHashMap;
 
                     /**
                      * Server application that handles client connections
@@ -16,7 +18,7 @@
                             private final String username;
                             private final String email;
                             private final String password;
-                            public static Hashtable<String, Customer> ccredentials = new Hashtable<String, Customer>();
+                            public static ConcurrentHashMap<String, Customer> ccredentials = new ConcurrentHashMap<String, Customer>();
 
                             public Customer(String email, String username, String password) {
                                 this.username = username;
@@ -42,12 +44,14 @@
                             private final String username;
                             private final String email;
                             private final String password;
-                            public static Hashtable<String, Driver> dcredentials = new Hashtable<String, Driver>();
+                            private String status = "available";
+                            public static ConcurrentHashMap<String, Driver> dcredentials = new ConcurrentHashMap<String, Driver>();
 
-                            public Driver(String email, String username, String password) {
+                            public Driver(String email, String username, String password, String status) {
                                 this.username = username;
                                 this.email = email;
                                 this.password = password;
+                                this.status=status;
                             }
 
                             public String getusername() {
@@ -59,6 +63,9 @@
                             public String getpassword() {
                                 return password;
                             }
+                            public String getstatus() {
+                                return status;
+                            }
                             public void putdcredentials(Driver driver) {
                                 dcredentials.put(getusername(), driver);
                             }
@@ -69,7 +76,7 @@
                             private final String dropLocation;
                             private final String customerUsername;
                             private final String driverUsername;
-                            public static Hashtable<String, Ride> rides = new Hashtable<String, Ride>();
+                            public static ConcurrentHashMap<String, Ride> rides = new ConcurrentHashMap<String, Ride>();
 
                             public Ride(String pickupLocation, String dropLocation, String customerUsername, String driverUsername) {
                                 this.pickupLocation = pickupLocation;
@@ -135,6 +142,7 @@
                         }
 
                         // ClientHandler class to handle each client in a separate thread
+                        //all logic for handling client requests is moved here
                         private static class ClientHandler implements Runnable {
                             private final Socket clientSocket;
 
@@ -156,7 +164,10 @@
                                     int mainChoice = Integer.parseInt(in.readUTF());
 
                                     if (mainChoice == 1) {
-                                        handleCustomerRequest(in, out);
+                                        if (handleCustomerRequest(in, out))
+                                        {
+                                             processMenuSelection(in, out);
+                                        }
                                     } else if (mainChoice == 2) {
                                         handleDriverRequest(in, out);
                                     } else {
@@ -189,11 +200,13 @@
                              * @param out DataOutputStream to send responses
                              * @throws IOException If there's an error reading from socket
                              */
-                            private void handleCustomerRequest(DataInputStream in, DataOutputStream out) throws IOException {
+
+                            Customer c = new Customer(null, null, null);
+
+                            private boolean handleCustomerRequest(DataInputStream in, DataOutputStream out) throws IOException {
                                 System.out.println("Client chose Customer");
                                 int d = 1;
                                 int choice = Integer.parseInt(in.readUTF());
-
                                 if (choice == 1) {
                                     processSignup(d, in, out);
                                 } else if (choice == 2) {
@@ -201,7 +214,9 @@
                                 } else {
                                     System.out.println("Invalid choice received from client.");
                                     out.writeUTF("Invalid choice");
+                                    return false;
                                 }
+                                return true;
                             }
 
                             /**
@@ -247,7 +262,8 @@
                                         System.out.println("Username already exists");
                                         out.writeUTF("FAILURE: Username already exists");
                                     } else {
-                                        Customer c = new Customer(email, username, password);
+                                     //   Customer c = new Customer(email, username, password);
+                                        c = new Customer(email, username, password);
                                         c.putccredentials(c);
                                         System.out.println("Received Sign up data: Email: " + c.getemail() +
                                                 ", Username: " + c.getusername() + ", Password: " + c.getpassword());
@@ -264,10 +280,11 @@
                                         System.out.println("Username already exists");
                                         out.writeUTF("FAILURE: Username already exists");
                                     } else {
-                                        Driver dr = new Driver(email, username, password);
+                                        String status = "available";
+                                        Driver dr = new Driver(email, username, password,status);
                                         dr.putdcredentials(dr);
                                         System.out.println("Received Sign up data: Email: " + dr.getemail() +
-                                                ", Username: " + dr.getusername() + ", Password: " + dr.getpassword());
+                                                ", Username: " + dr.getusername() + ", Password: " + dr.getpassword()+", Status: " + dr.getstatus());
                                         out.writeUTF("SUCCESS: Driver signup successful");
                                         processLogin(d, in, out);
                                     }
@@ -309,6 +326,58 @@
                                         System.out.println("Invalid username or password.");
                                         out.writeUTF("FAILURE: Invalid username or password");
                                     }
+                                }
+                            }
+
+                            private void processMenuSelection(DataInputStream in, DataOutputStream out) throws IOException {
+                                System.out.println("Waiting for menu selection from client...");
+                                int menuChoice = Integer.parseInt(in.readUTF());
+                                if (menuChoice == 1) {
+                                    processRideRequest(in, out);
+                                }
+                                else if (menuChoice == 2) {
+                                    // Future implementation for viewing ride history
+                                    out.writeUTF("Feature not implemented yet");
+                                }
+                                else if (menuChoice == 3) {
+                                    // Future implementation for updating profile
+                                    out.writeUTF("Feature not implemented yet");
+                                }
+                                else {
+                                    System.out.println("Invalid menu choice received from client.");
+                                    out.writeUTF("Invalid menu choice");
+                                }
+                            }
+
+                            private void processRideRequest(DataInputStream in, DataOutputStream out) throws IOException {
+                                System.out.println("Client chose to Request a Ride");
+                                String pickupLocation = in.readUTF();
+                                String dropLocation = in.readUTF();
+                                String customerUsername = c.getusername();
+                                String driverUsername = null;
+
+                                // Find an available driver
+                                Iterator<Map.Entry<String, Driver>> iterator = Driver.dcredentials.entrySet().iterator();
+                                while (iterator.hasNext()) {
+                                    Map.Entry<String, Driver> entry = iterator.next();
+                                    Driver driver = entry.getValue();
+                                    if (driver.getstatus().equals("available")) {
+                                        driverUsername = driver.getusername();
+                                        // Update driver status to unavailable
+                                        driver.status = "unavailable";
+                                        Ride ride = new Ride(pickupLocation, dropLocation, customerUsername, driverUsername);
+                                        ride.putRide(ride);
+                                        System.out.println("Received Ride data: Pickup Location: " + ride.getPickupLocation() +
+                                                ", Drop Location: " + ride.getDropLocation() +
+                                                ", Customer Username: " + ride.getCustomerUsername());
+                                        out.writeUTF("SUCCESS: Ride request successful");
+                                        break;
+                                    }
+                                }
+                                if (driverUsername == null) {
+                                    System.out.println("No available drivers at the moment.");
+                                    out.writeUTF("FAILURE: No available drivers at the moment");
+                                    return;
                                 }
                             }
                         }

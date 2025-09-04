@@ -75,7 +75,7 @@
                             private final String pickupLocation;
                             private final String dropLocation;
                             private final String customerUsername;
-                            private final String driverUsername;
+                            private String driverUsername;
                             public static ConcurrentHashMap<String, Ride> rides = new ConcurrentHashMap<String, Ride>();
 
                             public Ride(String pickupLocation, String dropLocation, String customerUsername, String driverUsername) {
@@ -166,14 +166,19 @@
                                     if (mainChoice == 1) {
                                         if (handleCustomerRequest(in, out))
                                         {
-                                             processMenuSelection(in, out);
+                                            int menuChoice = Integer.parseInt(in.readUTF());
+
+                                            processMenuSelection(in, out,menuChoice);
                                         }
-                                    } else if (mainChoice == 2) {
+                                    }
+                                    else if (mainChoice == 2) {
                                         handleDriverRequest(in, out);
-                                    } else {
+                                    }
+                                    else {
                                         System.out.println("Invalid choice received from client.");
                                         out.writeUTF("Invalid choice");
                                     }
+
                                 } catch (IOException e) {
                                     e.printStackTrace();
                                 } finally {
@@ -208,15 +213,21 @@
                                 int d = 1;
                                 int choice = Integer.parseInt(in.readUTF());
                                 if (choice == 1) {
-                                    processSignup(d, in, out);
-                                } else if (choice == 2) {
-                                    processLogin(d, in, out);
-                                } else {
+                                    if (processSignup(d, in, out)) {
+                                        return true;
+                                    }
+                                }
+                                else if (choice == 2) {
+                                    if (processLogin(d, in, out)) {
+                                        return true;
+                                    }
+                                }
+                                else {
                                     System.out.println("Invalid choice received from client.");
                                     out.writeUTF("Invalid choice");
                                     return false;
                                 }
-                                return true;
+                                return false;
                             }
 
                             /**
@@ -244,12 +255,13 @@
                             /**
                              * Process user signup data.
                              *
-                             * @param d Type of user (1 for Customer, 2 for Driver)
-                             * @param in DataInputStream to read user data
+                             * @param d   Type of user (1 for Customer, 2 for Driver)
+                             * @param in  DataInputStream to read user data
                              * @param out DataOutputStream to send response
+                             * @return
                              * @throws IOException If there's an error with I/O operations
                              */
-                            private void processSignup(int d, DataInputStream in, DataOutputStream out) throws IOException {
+                            private boolean processSignup(int d, DataInputStream in, DataOutputStream out) throws IOException {
                                 System.out.println("Client chose to Sign up");
 
                                 if (d == 1) {
@@ -261,6 +273,7 @@
                                     if (Customer.ccredentials.containsKey(username)) {
                                         System.out.println("Username already exists");
                                         out.writeUTF("FAILURE: Username already exists");
+                                        return false;
                                     } else {
                                      //   Customer c = new Customer(email, username, password);
                                         c = new Customer(email, username, password);
@@ -269,6 +282,7 @@
                                                 ", Username: " + c.getusername() + ", Password: " + c.getpassword());
                                         out.writeUTF("SUCCESS: Customer signup successful");
                                         processLogin(d, in, out);
+                                        return true;
                                     }
                                 } else {
                                     System.out.println("Driver");
@@ -279,6 +293,7 @@
                                     if (Driver.dcredentials.containsKey(username)) {
                                         System.out.println("Username already exists");
                                         out.writeUTF("FAILURE: Username already exists");
+                                        return false;
                                     } else {
                                         String status = "available";
                                         Driver dr = new Driver(email, username, password,status);
@@ -287,6 +302,7 @@
                                                 ", Username: " + dr.getusername() + ", Password: " + dr.getpassword()+", Status: " + dr.getstatus());
                                         out.writeUTF("SUCCESS: Driver signup successful");
                                         processLogin(d, in, out);
+                                        return true;
                                     }
                                 }
                             }
@@ -294,12 +310,13 @@
                             /**
                              * Process user login data.
                              *
-                             * @param d Type of user (1 for Customer, 2 for Driver)
-                             * @param in DataInputStream to read user data
+                             * @param d   Type of user (1 for Customer, 2 for Driver)
+                             * @param in  DataInputStream to read user data
                              * @param out DataOutputStream to send response
+                             * @return
                              * @throws IOException If there's an error with I/O operations
                              */
-                            private void processLogin(int d, DataInputStream in, DataOutputStream out) throws IOException {
+                            private <bool> boolean processLogin(int d, DataInputStream in, DataOutputStream out) throws IOException {
                                 System.out.println("Client chose to Log in");
                                 String username = in.readUTF();
                                 String password = in.readUTF();
@@ -312,9 +329,11 @@
                                         Customer.ccredentials.get(username).getpassword().equals(password)) {
                                         System.out.println("Login successful customer!");
                                         out.writeUTF("SUCCESS: Customer login successful");
+                                        return true;
                                     } else {
                                         System.out.println("Invalid username or password.");
                                         out.writeUTF("FAILURE: Invalid username or password");
+                                        return false;
                                     }
                                 } else {
                                     System.out.println("Driver");
@@ -322,16 +341,18 @@
                                         Driver.dcredentials.get(username).getpassword().equals(password)) {
                                         System.out.println("Login successful driver!");
                                         out.writeUTF("SUCCESS: Driver login successful");
+                                        return true;
                                     } else {
                                         System.out.println("Invalid username or password.");
                                         out.writeUTF("FAILURE: Invalid username or password");
+                                        return false;
                                     }
                                 }
                             }
 
-                            private void processMenuSelection(DataInputStream in, DataOutputStream out) throws IOException {
+                            private  void processMenuSelection(DataInputStream in, DataOutputStream out, int menuChoice) throws IOException {
                                 System.out.println("Waiting for menu selection from client...");
-                                int menuChoice = Integer.parseInt(in.readUTF());
+                                 //menuChoice = Integer.parseInt(in.readUTF());
                                 if (menuChoice == 1) {
                                     processRideRequest(in, out);
                                 }
@@ -350,29 +371,36 @@
                             }
 
                             private void processRideRequest(DataInputStream in, DataOutputStream out) throws IOException {
+
                                 System.out.println("Client chose to Request a Ride");
                                 String pickupLocation = in.readUTF();
                                 String dropLocation = in.readUTF();
                                 String customerUsername = c.getusername();
                                 String driverUsername = null;
 
+                                Ride ride = new Ride(pickupLocation, dropLocation, customerUsername, driverUsername);
+                                ride.putRide(ride);
+                                System.out.println("Received Ride data: Pickup Location: " + ride.getPickupLocation() +
+                                        ", Drop Location: " + ride.getDropLocation() +
+                                        ", Customer Username: " + ride.getCustomerUsername());
+
                                 // Find an available driver
                                 Iterator<Map.Entry<String, Driver>> iterator = Driver.dcredentials.entrySet().iterator();
                                 while (iterator.hasNext()) {
+
                                     Map.Entry<String, Driver> entry = iterator.next();
                                     Driver driver = entry.getValue();
+
                                     if (driver.getstatus().equals("available")) {
                                         driverUsername = driver.getusername();
                                         // Update driver status to unavailable
+                                        ride.driverUsername=driverUsername;
                                         driver.status = "unavailable";
-                                        Ride ride = new Ride(pickupLocation, dropLocation, customerUsername, driverUsername);
-                                        ride.putRide(ride);
-                                        System.out.println("Received Ride data: Pickup Location: " + ride.getPickupLocation() +
-                                                ", Drop Location: " + ride.getDropLocation() +
-                                                ", Customer Username: " + ride.getCustomerUsername());
                                         out.writeUTF("SUCCESS: Ride request successful");
+                                        out.writeUTF("Driver assigned: " + driverUsername);
                                         break;
                                     }
+
                                 }
                                 if (driverUsername == null) {
                                     System.out.println("No available drivers at the moment.");
@@ -380,6 +408,8 @@
                                     return;
                                 }
                             }
+
+
                         }
 
                         public static void main(String[] args) {

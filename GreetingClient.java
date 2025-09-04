@@ -50,7 +50,9 @@
                                 if (mainChoice == 1) {
                                     if(handleCustomer(client))
                                     {
-                                        CustomerMenu(client);
+                                        int menuChoice = Integer.parseInt(mainBuffReader.readLine());
+                                        outToServer.writeUTF(String.valueOf(menuChoice));
+                                        CustomerMenu(client,menuChoice);
                                     }
                                 } else if (mainChoice == 2) {
                                     handleDriver(client);
@@ -234,15 +236,19 @@
 
                         }
 
-                        private static void CustomerMenu(Socket client) {
+                        private static void CustomerMenu(Socket client,int menuChoice) {
                             System.out.println("Welcome to the Customer Menu!");
                             System.out.println("1. Request Ride");
                             System.out.println("2. View ride status");
                             System.out.println("3. Disconnect");
                             System.out.println("Please enter your choice:");
                             try {
-                                BufferedReader menuReader = new BufferedReader(new InputStreamReader(System.in));
-                                int menuChoice = Integer.parseInt(menuReader.readLine());
+                              //  BufferedReader mainBuffReader = new BufferedReader(new InputStreamReader(System.in));
+                              //  int menuChoice = Integer.parseInt(mainBuffReader.readLine());
+
+                                // Send menu choice to server
+                                DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
+                                outToServer.writeUTF(String.valueOf(menuChoice));
                                 switch (menuChoice) {
                                     case 1:
                                         System.out.println("Requesting ride...");
@@ -259,7 +265,7 @@
                                         break;
                                     default:
                                         System.out.println("Invalid choice. Please try again.");
-                                        CustomerMenu(client);
+                                        CustomerMenu(client,menuChoice);
                                         break;
                                 }
                             } catch (IOException e) {

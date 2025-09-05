@@ -51,7 +51,7 @@ public class GreetingServer extends Thread {
             this.username = username;
             this.email = email;
             this.password = password;
-            this.status=status;
+            this.status = status;
         }
 
         public String getusername() {
@@ -145,6 +145,7 @@ public class GreetingServer extends Thread {
     //all logic for handling client requests is moved here
     private static class ClientHandler implements Runnable {
         private final Socket clientSocket;
+        private Customer c = new Customer(null, null, null);
 
         // Constructor
         public ClientHandler(Socket socket) {
@@ -164,15 +165,16 @@ public class GreetingServer extends Thread {
                 int mainChoice = Integer.parseInt(in.readUTF());
 
                 if (mainChoice == 1) {
-                    if (handleCustomerRequest(in, out))
-                    {
+                    if (handleCustomerRequest(in, out)) {
                         int menuChoice = Integer.parseInt(in.readUTF());
-
-                        processMenuSelection(in, out,menuChoice);
+                        processCustomerMenuSelection(in, out, menuChoice);
                     }
                 }
                 else if (mainChoice == 2) {
-                    handleDriverRequest(in, out);
+                    if(handleDriverRequest(in, out)) {
+                        int menuChoice = Integer.parseInt(in.readUTF());
+                        processDriverMenuSelection(in, out, menuChoice);
+                    }
                 }
                 else {
                     System.out.println("Invalid choice received from client.");
@@ -205,9 +207,6 @@ public class GreetingServer extends Thread {
          * @param out DataOutputStream to send responses
          * @throws IOException If there's an error reading from socket
          */
-
-        Customer c = new Customer(null, null, null);
-
         private boolean handleCustomerRequest(DataInputStream in, DataOutputStream out) throws IOException {
             System.out.println("Client chose Customer");
             int d = 1;
@@ -237,19 +236,27 @@ public class GreetingServer extends Thread {
          * @param out DataOutputStream to send responses
          * @throws IOException If there's an error reading from socket
          */
-        private void handleDriverRequest(DataInputStream in, DataOutputStream out) throws IOException {
+        private boolean handleDriverRequest(DataInputStream in, DataOutputStream out) throws IOException {
             System.out.println("Client chose Driver");
             int d = 2;
             int choice = Integer.parseInt(in.readUTF());
 
             if (choice == 1) {
-                processSignup(d, in, out);
-            } else if (choice == 2) {
-                processLogin(d, in, out);
-            } else {
+                if(processSignup(d, in, out)) {
+                    return true;
+                }
+            }
+            else if (choice == 2) {
+                if (processLogin(d, in, out)) {
+                    return true;
+                }
+            }
+            else {
                 System.out.println("Invalid choice received from client.");
                 out.writeUTF("Invalid choice");
+                return false;
             }
+            return false;
         }
 
         /**
@@ -275,7 +282,6 @@ public class GreetingServer extends Thread {
                     out.writeUTF("FAILURE: Username already exists");
                     return false;
                 } else {
-                    //   Customer c = new Customer(email, username, password);
                     c = new Customer(email, username, password);
                     c.putccredentials(c);
                     System.out.println("Received Sign up data: Email: " + c.getemail() +
@@ -296,7 +302,7 @@ public class GreetingServer extends Thread {
                     return false;
                 } else {
                     String status = "available";
-                    Driver dr = new Driver(email, username, password,status);
+                    Driver dr = new Driver(email, username, password, status);
                     dr.putdcredentials(dr);
                     System.out.println("Received Sign up data: Email: " + dr.getemail() +
                             ", Username: " + dr.getusername() + ", Password: " + dr.getpassword()+", Status: " + dr.getstatus());
@@ -316,7 +322,7 @@ public class GreetingServer extends Thread {
          * @return
          * @throws IOException If there's an error with I/O operations
          */
-        private <bool> boolean processLogin(int d, DataInputStream in, DataOutputStream out) throws IOException {
+        private boolean processLogin(int d, DataInputStream in, DataOutputStream out) throws IOException {
             System.out.println("Client chose to Log in");
             String username = in.readUTF();
             String password = in.readUTF();
@@ -328,6 +334,8 @@ public class GreetingServer extends Thread {
                 if (Customer.ccredentials.containsKey(username) &&
                         Customer.ccredentials.get(username).getpassword().equals(password)) {
                     System.out.println("Login successful customer!");
+                    // attach logged-in customer to this session for later ride requests
+                    this.c = Customer.ccredentials.get(username);
                     out.writeUTF("SUCCESS: Customer login successful");
                     return true;
                 } else {
@@ -350,9 +358,8 @@ public class GreetingServer extends Thread {
             }
         }
 
-        private  void processMenuSelection(DataInputStream in, DataOutputStream out, int menuChoice) throws IOException {
+        private void processCustomerMenuSelection(DataInputStream in, DataOutputStream out, int menuChoice) throws IOException {
             System.out.println("Waiting for menu selection from client...");
-            //menuChoice = Integer.parseInt(in.readUTF());
             if (menuChoice == 1) {
                 processRideRequest(in, out);
             }
@@ -371,7 +378,6 @@ public class GreetingServer extends Thread {
         }
 
         private void processRideRequest(DataInputStream in, DataOutputStream out) throws IOException {
-
             System.out.println("Client chose to Request a Ride");
             String pickupLocation = in.readUTF();
             String dropLocation = in.readUTF();
@@ -387,29 +393,50 @@ public class GreetingServer extends Thread {
             // Find an available driver
             Iterator<Map.Entry<String, Driver>> iterator = Driver.dcredentials.entrySet().iterator();
             while (iterator.hasNext()) {
-
                 Map.Entry<String, Driver> entry = iterator.next();
                 Driver driver = entry.getValue();
 
                 if (driver.getstatus().equals("available")) {
                     driverUsername = driver.getusername();
                     // Update driver status to unavailable
-                    ride.driverUsername=driverUsername;
+                    ride.driverUsername = driverUsername;
                     driver.status = "unavailable";
                     out.writeUTF("SUCCESS: Ride request successful");
                     out.writeUTF("Driver assigned: " + driverUsername);
-                    break;
+                    return;
                 }
-
             }
+
             if (driverUsername == null) {
                 System.out.println("No available drivers at the moment.");
                 out.writeUTF("FAILURE: No available drivers at the moment");
-                return;
             }
         }
 
+        private void processDriverMenuSelection(DataInputStream in, DataOutputStream out, int menuChoice) throws IOException {
+            System.out.println("Waiting for menu selection from client...");
+            if (menuChoice == 1) {
+                OfferRideFare(in, out);
+            }
+            else if (menuChoice == 2) {
+                // Future implementation for updating profile
+                out.writeUTF("Feature not implemented yet");
+            }
+            else if (menuChoice == 3) {
+                // Future implementation for updating ride status
+                out.writeUTF("Feature not implemented yet");
+            }
+            else {
+                System.out.println("Invalid menu choice received from client.");
+                out.writeUTF("Invalid menu choice");
+            }
+        }
 
+        private void OfferRideFare(DataInputStream in, DataOutputStream out) throws IOException {
+            System.out.println("Driver chose to Offer Ride Fare");
+
+
+        }
     }
 
     public static void main(String[] args) {

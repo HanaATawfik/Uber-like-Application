@@ -60,7 +60,17 @@ public class GreetingClient {
                     CustomerMenu(client,menuChoice);
                 }
             } else if (mainChoice == 2) {
-                handleDriver(client);
+                if(handleDriver(client))
+                {
+                    System.out.println("Welcome to the Driver Menu!");
+                    System.out.println("1. Offer fare for ride requests");
+                    System.out.println("2. Update ride status");
+                    System.out.println("3. Disconnect");
+                    System.out.println("Please enter your choice:");
+                    int menuChoice = Integer.parseInt(mainBuffReader.readLine());
+                    outToServer.writeUTF(String.valueOf(menuChoice));
+                    DriverMenu(client,menuChoice);
+                }
             } else {
                 System.out.println("Invalid choice. Exiting.");
                 client.close();
@@ -80,7 +90,7 @@ public class GreetingClient {
      * @return
      * @throws IOException If there's an error with I/O operations
      */
-    public static <bool> boolean handleCustomer(Socket client) throws IOException {
+    public static boolean handleCustomer(Socket client) throws IOException {
         boolean isCustomer = true;
         System.out.println("You chose Customer");
         System.out.println("Please choose whether you want to Sign up or Log in by either entering 1 or 2");
@@ -110,7 +120,7 @@ public class GreetingClient {
      * @param client Socket connection to server
      * @throws IOException If there's an error with I/O operations
      */
-    private static void handleDriver(Socket client) throws IOException {
+    private static boolean handleDriver(Socket client) throws IOException {
         System.out.println("You chose Driver");
         System.out.println("Please choose whether you want to Sign up or Log in by either entering 1 or 2");
         System.out.println("1. Sign up");
@@ -129,7 +139,9 @@ public class GreetingClient {
         } else {
             System.out.println("Invalid choice. Exiting.");
             client.close();
+            return false;
         }
+        return true;
     }
 
     /**
@@ -140,7 +152,7 @@ public class GreetingClient {
      * @param isCustomer
      * @throws IOException If there's an error with I/O operations
      */
-    public static <bool> boolean handleSignup(Socket client, BufferedReader buffReader, boolean isCustomer) throws IOException {
+    public static boolean handleSignup(Socket client, BufferedReader buffReader, boolean isCustomer) throws IOException {
         System.out.println("You chose to Sign up");
 
         System.out.println("Please enter your email:");
@@ -180,7 +192,7 @@ public class GreetingClient {
      * @param isCustomer
      * @throws IOException If there's an error with I/O operations
      */
-    public static <bool> boolean handleLogin(Socket client, BufferedReader buffReader, boolean isCustomer) throws IOException {
+    public static boolean handleLogin(Socket client, BufferedReader buffReader, boolean isCustomer) throws IOException {
         System.out.println("You chose to Log in");
 
         System.out.println("Please enter your username:");
@@ -249,7 +261,6 @@ public class GreetingClient {
         // Logic for requesting a ride can be added here
 
     }
-
     private static void CustomerMenu(Socket client,int menuChoice) {
         //     System.out.println("Welcome to the Customer Menu!");
         //   System.out.println("1. Request Ride");
@@ -282,4 +293,53 @@ public class GreetingClient {
                 break;
         }
     }
+    private static void DriverMenu(Socket client,int menuChoice) {
+        switch (menuChoice) {
+            case 1:
+                System.out.println("Viewing ride requests...");
+                OfferFare(client);
+                break;
+            case 2:
+                System.out.println("Updating ride status...");
+                // Logic for updating ride status can be added here
+                break;
+            case 3:
+                System.out.println("Disconnecting...");
+                // Logic for disconnecting can be added here
+                break;
+            default:
+                System.out.println("Invalid choice. Please try again.");
+                DriverMenu(client,menuChoice);
+                break;
+        }
+    }
+
+    private static void OfferFare(Socket client) {
+        System.out.println("you will be shown a list of ride requests");
+        BufferedReader fareReader = new BufferedReader(new InputStreamReader(System.in));
+        try {
+            // Read response from server
+            DataInputStream inFromServer = new DataInputStream(client.getInputStream());
+            String serverResponse = inFromServer.readUTF();
+            System.out.println("Server response: " + serverResponse);
+            System.out.println("Please enter the ride ID you want to offer a fare for:");
+            String rideID = fareReader.readLine();
+            System.out.println("Please enter your fare amount:");
+            String fareAmount = fareReader.readLine();
+            System.out.println("Offering fare of " + fareAmount + " for ride ID " + rideID);
+            // Send data to server
+            DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
+            outToServer.writeUTF(rideID);
+            outToServer.writeUTF(fareAmount);
+            System.out.println("Fare offer sent to server.");
+            // Read response from server
+            String serverResponse2 = inFromServer.readUTF();
+            System.out.println("Server response: " + serverResponse2);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        // Logic for offering a fare can be added here
+
+    }
+
 }

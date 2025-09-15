@@ -237,10 +237,13 @@ public class GreetingClient {
             System.out.println("Please enter your drop-off location:");
             String dropoffLocation = rideReader.readLine();
             System.out.println("Ride requested from " + pickupLocation + " to " + dropoffLocation);
+            String customerFare= rideReader.readLine();
+            System.out.println("Customer fare: " + customerFare);
             // Send data to server
             DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
             outToServer.writeUTF(pickupLocation);
             outToServer.writeUTF(dropoffLocation);
+            outToServer.writeUTF(customerFare);
             System.out.println("Ride request sent to server.");
             // Read response from server
             DataInputStream inFromServer = new DataInputStream(client.getInputStream());
@@ -249,8 +252,21 @@ public class GreetingClient {
 
             // FIXED: Only read second response if first one indicates success
             if (serverResponse.startsWith("SUCCESS")) {
+                //String serverResponse2 = inFromServer.readUTF();
+                System.out.println("waiting for offers from drivers: " );
                 String serverResponse2 = inFromServer.readUTF();
                 System.out.println("Server response: " + serverResponse2);
+                if (serverResponse2.startsWith("SUCCESS")) {
+                    System.out.println("Ride request processed successfully.");
+                    String driverUsername = inFromServer.readUTF();
+                    String driverFare = inFromServer.readUTF();
+                    System.out.println("Driver accepted ride request.");
+                    System.out.println("Driver: " + driverUsername);
+                    System.out.println("Fare offered by driver: " + driverFare);
+                }
+                else {
+                    System.out.println("No drivers accepted the ride request.");
+                }
             } else {
                 // Failure path: do not attempt a second read
                 System.out.println("Ride request failed.");
@@ -293,7 +309,7 @@ public class GreetingClient {
                 break;
         }
     }
-    private static void DriverMenu(Socket client,int menuChoice) {
+    private static void DriverMenu(Socket client,int menuChoice) throws IOException {
         switch (menuChoice) {
             case 1:
                 System.out.println("Viewing ride requests...");
@@ -314,31 +330,69 @@ public class GreetingClient {
         }
     }
 
-    private static void OfferFare(Socket client) {
-        System.out.println("you will be shown a list of ride requests");
-        BufferedReader fareReader = new BufferedReader(new InputStreamReader(System.in));
-        try {
-            // Read response from server
-            DataInputStream inFromServer = new DataInputStream(client.getInputStream());
-            String serverResponse = inFromServer.readUTF();
-            System.out.println("Server response: " + serverResponse);
-            System.out.println("Please enter the ride ID you want to offer a fare for:");
-            String rideID = fareReader.readLine();
-            System.out.println("Please enter your fare amount:");
-            String fareAmount = fareReader.readLine();
-            System.out.println("Offering fare of " + fareAmount + " for ride ID " + rideID);
-            // Send data to server
+    private static void OfferFare(Socket client) throws IOException {
+       System.out.println("checking if you are available to offer fare for ride requests...");
+        DataInputStream inFromServer = new DataInputStream(client.getInputStream());
+        String serverResponse = inFromServer.readUTF();
+        if(serverResponse.equals("available")){
+            System.out.println("you are available to offer fare for ride requests.");
+            System.out.println("checking for ride requests...");
+            String rideRequest = inFromServer.readUTF();
+            System.out.println("Ride requests received: " +rideRequest);
+            System.out.println("Please choose a ride to offer a fare by entering the desired customer name:");
+            BufferedReader customerChoice = new BufferedReader(new InputStreamReader(System.in));
+
+            String rideIndex = customerChoice.readLine();
+
+            // Send ride choice to server
             DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
-            outToServer.writeUTF(rideID);
-            outToServer.writeUTF(fareAmount);
-            System.out.println("Fare offer sent to server.");
+            outToServer.writeUTF(String.valueOf(rideIndex));
+            System.out.println("ride of this customer sent to server " + rideIndex);
+
             // Read response from server
             String serverResponse2 = inFromServer.readUTF();
             System.out.println("Server response: " + serverResponse2);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+
+            if (serverResponse2.startsWith("SUCCESS")) {
+                System.out.println("You can now offer a fare for the selected ride.");
+                System.out.println("Please enter your fare amount:");
+                String fareAmount = customerChoice.readLine();
+                outToServer.writeUTF(String.valueOf(fareAmount));
+                System.out.println("Fare amount sent to server: " + fareAmount);
+
+                String serverResponse3 = inFromServer.readUTF();
+                System.out.println("Server response: " + serverResponse3);
+
+                String driverUsername = inFromServer.readUTF();
+                String driverFare = inFromServer.readUTF();
+                String customerUsername = inFromServer.readUTF();
+                String  pickupLocation = inFromServer.readUTF();
+                String dropoffLocation = inFromServer.readUTF();
+
+                String decision= inFromServer.readUTF();
+                if(decision.startsWith("SUCCESS"))
+                {
+                    System.out.println("Fare offered successfully.");
+                    System.out.println("Fare offered by driver: " + driverUsername);
+                    System.out.println("Fare offered by customer: " + customerUsername);
+                    System.out.println("Pickup location: " + pickupLocation);
+                    System.out.println("Drop-off location: " + dropoffLocation);
+                    System.out.println("Fare: " + driverFare);
+                    System.out.println("Ride status updated successfully.");
+                }
+                else {
+                    System.out.println("Failed to offer fare. Please try again.");
+                }
+            } else {
+                System.out.println("Failed to select ride. Please try again.");
+            }
+
         }
-        // Logic for offering a fare can be added here
+        else
+        {
+            System.out.println("You are not available to offer fare for ride requests at the moment.");
+            return;
+        }
 
     }
 

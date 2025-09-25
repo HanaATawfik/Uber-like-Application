@@ -47,7 +47,6 @@ public class GreetingServer extends Thread {
         private String status = "available";
         public static ConcurrentHashMap<String, Driver> dcredentials = new ConcurrentHashMap<String, Driver>();
 
-
         public Driver(String email, String username, String password, String status) {
             this.username = username;
             this.email = email;
@@ -67,6 +66,9 @@ public class GreetingServer extends Thread {
         public String getstatus() {
             return status;
         }
+        public void setstatus(String status) {
+            this.status = status;
+        }
         public void putdcredentials(Driver driver) {
             dcredentials.put(getusername(), driver);
         }
@@ -77,18 +79,19 @@ public class GreetingServer extends Thread {
         private final String dropLocation;
         private final String customerUsername;
         private String driverUsername;
+        private String driverFare = null;
+        private String customerFare = null;
+        private String status = "pending"; // pending, matched, ongoing, completed
 
-        private String driverFare=null;
-        private String customerFare=null;
+        // Store pending ride requests (not yet assigned to a driver)
+        public static ConcurrentHashMap<String, Ride> pendingRides = new ConcurrentHashMap<String, Ride>();
+        // Store all rides (including assigned ones)
+        public static ConcurrentHashMap<String, Ride> allRides = new ConcurrentHashMap<String, Ride>();
 
-
-        public static ConcurrentHashMap<String, Ride> rides = new ConcurrentHashMap<String, Ride>();
-
-        public Ride(String pickupLocation, String dropLocation, String customerUsername, String driverUsername,String customerFare) {
+        public Ride(String pickupLocation, String dropLocation, String customerUsername, String customerFare) {
             this.pickupLocation = pickupLocation;
             this.dropLocation = dropLocation;
             this.customerUsername = customerUsername;
-            this.driverUsername = driverUsername;
             this.customerFare = customerFare;
         }
 
@@ -104,15 +107,32 @@ public class GreetingServer extends Thread {
         public String getDriverUsername() {
             return driverUsername;
         }
+        public void setDriverUsername(String driverUsername) {
+            this.driverUsername = driverUsername;
+        }
         public String getCustomerFare() {
             return customerFare;
         }
         public String getDriverFare() {
             return driverFare;
         }
+        public void setDriverFare(String driverFare) {
+            this.driverFare = driverFare;
+        }
+        public String getStatus() {
+            return status;
+        }
+        public void setStatus(String status) {
+            this.status = status;
+        }
 
-        public void putRide(Ride ride) {
-            rides.put(ride.getCustomerUsername(), ride);
+        public void addToPendingRides() {
+            pendingRides.put(this.customerUsername, this);
+            allRides.put(this.customerUsername, this);
+        }
+
+        public void removeFromPendingRides() {
+            pendingRides.remove(this.customerUsername);
         }
     }
 
@@ -156,11 +176,11 @@ public class GreetingServer extends Thread {
     }
 
     // ClientHandler class to handle each client in a separate thread
-    //all logic for handling client requests is moved here
     private static class ClientHandler implements Runnable {
         private final Socket clientSocket;
         private Customer c = new Customer(null, null, null);
         private Driver d = new Driver(null, null, null, null);
+
         // Constructor
         public ClientHandler(Socket socket) {
             this.clientSocket = socket;
@@ -216,10 +236,6 @@ public class GreetingServer extends Thread {
 
         /**
          * Handle customer signup or login requests.
-         *
-         * @param in DataInputStream to read from client
-         * @param out DataOutputStream to send responses
-         * @throws IOException If there's an error reading from socket
          */
         private boolean handleCustomerRequest(DataInputStream in, DataOutputStream out) throws IOException {
             System.out.println("Client chose Customer");
@@ -245,10 +261,6 @@ public class GreetingServer extends Thread {
 
         /**
          * Handle driver signup or login requests.
-         *
-         * @param in DataInputStream to read from client
-         * @param out DataOutputStream to send responses
-         * @throws IOException If there's an error reading from socket
          */
         private boolean handleDriverRequest(DataInputStream in, DataOutputStream out) throws IOException {
             System.out.println("Client chose Driver");
@@ -275,12 +287,6 @@ public class GreetingServer extends Thread {
 
         /**
          * Process user signup data.
-         *
-         * @param d   Type of user (1 for Customer, 2 for Driver)
-         * @param in  DataInputStream to read user data
-         * @param out DataOutputStream to send response
-         * @return
-         * @throws IOException If there's an error with I/O operations
          */
         private boolean processSignup(int d, DataInputStream in, DataOutputStream out) throws IOException {
             System.out.println("Client chose to Sign up");
@@ -316,12 +322,14 @@ public class GreetingServer extends Thread {
                     return false;
                 } else {
                     String status = "available";
-                    Driver dr = new Driver(email, username, password, status);
-                    dr.putdcredentials(dr);
-                    System.out.println("Received Sign up data: Email: " + dr.getemail() +
-                            ", Username: " + dr.getusername() + ", Password: " + dr.getpassword()+", Status: " + dr.getstatus());
+                    // Fix: Use a different variable name to avoid conflict with parameter 'd'
+                    Driver driverObj = new Driver(email, username, password, status);
+                    this.d = driverObj;
+                    this.d.putdcredentials(this.d);
+                    System.out.println("Received Sign up data: Email: " + this.d.getemail() +
+                            ", Username: " + this.d.getusername() + ", Password: " + this.d.getpassword()+", Status: " + this.d.getstatus());
                     out.writeUTF("SUCCESS: Driver signup successful");
-                    processLogin(d, in, out);
+                    processLogin(2, in, out);
                     return true;
                 }
             }
@@ -329,12 +337,6 @@ public class GreetingServer extends Thread {
 
         /**
          * Process user login data.
-         *
-         * @param d   Type of user (1 for Customer, 2 for Driver)
-         * @param in  DataInputStream to read user data
-         * @param out DataOutputStream to send response
-         * @return
-         * @throws IOException If there's an error with I/O operations
          */
         private boolean processLogin(int d, DataInputStream in, DataOutputStream out) throws IOException {
             System.out.println("Client chose to Log in");
@@ -362,6 +364,8 @@ public class GreetingServer extends Thread {
                 if (Driver.dcredentials.containsKey(username) &&
                         Driver.dcredentials.get(username).getpassword().equals(password)) {
                     System.out.println("Login successful driver!");
+                    // attach logged-in driver to this session
+                    this.d = Driver.dcredentials.get(username);
                     out.writeUTF("SUCCESS: Driver login successful");
                     return true;
                 } else {
@@ -397,55 +401,44 @@ public class GreetingServer extends Thread {
             String dropLocation = in.readUTF();
             String customerFare = in.readUTF();
             String customerUsername = c.getusername();
-            String driverUsername = null;
 
-            Ride ride = new Ride(pickupLocation, dropLocation, customerUsername, driverUsername,customerFare);
-            ride.putRide(ride);
+            // Create new ride and add to pending rides
+            Ride ride = new Ride(pickupLocation, dropLocation, customerUsername, customerFare);
+            ride.addToPendingRides();
+
             System.out.println("Received Ride data: Pickup Location: " + ride.getPickupLocation() +
                     ", Drop Location: " + ride.getDropLocation() +
-                    ", Customer Username: " + ride.getCustomerUsername() +"customer's offered fare: " + customerFare);
+                    ", Customer Username: " + ride.getCustomerUsername() +
+                    ", Customer's offered fare: " + customerFare);
 
-            // Find an available driver
-            Iterator<Map.Entry<String, Driver>> iterator = Driver.dcredentials.entrySet().iterator();
-            while (iterator.hasNext()) {
-                Map.Entry<String, Driver> entry = iterator.next();
-                Driver driver = entry.getValue();
+            out.writeUTF("SUCCESS: Ride request has been posted. Waiting for drivers to respond...");
 
-                if (driver.getstatus().equals("available")) {
-                    out.writeUTF("SUCCESS: broadcasting to drivers");
-                    if (ride.driverFare!=null)
-                    {
-                        out.writeUTF("Driver " + driver.getusername() + " offered fare: " + ride.driverFare + " for your ride request from " +
-                                ride.getPickupLocation() + " to " + ride.getDropLocation());
-                        if (ride.driverFare.equals(customerFare))
-                        {
-                            out.writeUTF("SUCCESS: Ride request accepted by driver " + driver.getusername());
-                            driver.status = "busy";
-                            driver.putdcredentials(driver);
-                            ride.driverUsername = driver.getusername();
-                            out.writeUTF(ride.driverUsername);
-                            out.writeUTF(ride.driverFare);
-                            Ride.rides.put(customerUsername, ride);
-                        }
-                        else
-                        {
-                            out.writeUTF("sorry your offer is not accepted by driver "+driver.getusername());
-                            out.writeUTF("Waiting for other offers");
-                        }
-                    }
-                    else
-                    {
-                        out.writeUTF("No offers yet");
-                    }
+            // Wait for driver offers (with timeout)
+            long startTime = System.currentTimeMillis();
+            long timeout = 60000; // 60 seconds timeout
 
+            while (System.currentTimeMillis() - startTime < timeout) {
+                Ride currentRide = Ride.allRides.get(customerUsername);
+                if (currentRide != null && currentRide.getDriverUsername() != null) {
+                    // Driver has been assigned
+                    out.writeUTF("SUCCESS: Driver found!");
+                    out.writeUTF(currentRide.getDriverUsername());
+                    out.writeUTF(currentRide.getDriverFare());
                     return;
+                }
+
+                try {
+                    Thread.sleep(1000); // Check every second
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
                 }
             }
 
-            if (driverUsername == null) {
-                System.out.println("No available drivers at the moment.");
-                out.writeUTF("FAILURE: No available drivers at the moment");
-            }
+            // Timeout - no driver found
+            out.writeUTF("FAILURE: No drivers responded to your request within the time limit.");
+            Ride.pendingRides.remove(customerUsername);
+            Ride.allRides.remove(customerUsername);
         }
 
         private void processDriverMenuSelection(DataInputStream in, DataOutputStream out, int menuChoice) throws IOException {
@@ -469,65 +462,70 @@ public class GreetingServer extends Thread {
 
         private void OfferRideFare(DataInputStream in, DataOutputStream out) throws IOException {
             System.out.println("Driver chose to Offer Ride Fare");
-            System.out.println("check driver's availability");
             String driverUsername = d.getusername();
-            String status = d.getstatus();
-            if (status.equals("available")) {
-                out.writeUTF("available");
-                Iterator<Map.Entry<String, Ride>> iterator = Ride.rides.entrySet().iterator();
-                if (!iterator.hasNext()) {
-                    out.writeUTF("no ride requests");
-                    return;
-                }
-                else {
-                    while (iterator.hasNext()) {
-                        Map.Entry<String, Ride> entry = iterator.next();
-                        Ride ride = entry.getValue();
-                        out.writeUTF("Ride Request from Customer: " + ride.getCustomerUsername() +
-                                ", Pickup Location: " + ride.getPickupLocation() +
-                                ", Drop Location: " + ride.getDropLocation());
-                    }
-                    String chosenride = in.readUTF();
-                    Ride chosenRide = Ride.rides.get(chosenride);
-                   if (chosenRide != null) {
-                        out.writeUTF("SUCCESS: You have selected the ride request from " + chosenRide.getCustomerUsername());
-                        String fare = in.readUTF();
-                       chosenRide.driverFare = fare;
-                       out.writeUTF(driverUsername+"Offered fare: " + fare + " for the ride from " + chosenRide.getPickupLocation() +
-                               " to " + chosenRide.getDropLocation()+" by customer "+chosenRide.getCustomerUsername());
-                       out.writeUTF(driverUsername);
-                       out.writeUTF(fare);
-                       out.writeUTF(chosenRide.getCustomerUsername());
-                       out.writeUTF(chosenRide.getPickupLocation());
-                       out.writeUTF(chosenRide.getDropLocation());
-                        //send offer to customer
-                        if (fare.equals(chosenRide.getCustomerFare()))
-                        {
-                            out.writeUTF("SUCCESS: Ride request accepted by driver " + driverUsername);
-                            d.status = "busy";
-                            d.putdcredentials(d);
-                            chosenRide.driverUsername = driverUsername;
-                            Ride.rides.put(chosenride, chosenRide);
-                        }
-                        else
-                        {
-                            out.writeUTF("sorry your offer is not accepted by customer "+chosenRide.getCustomerUsername());
-                            out.writeUTF("Waiting for other offers");
-                        }
 
-
-
-                        //wait for customer's response
-
-                    } else {
-                        out.writeUTF("Invalid ride selection");
-                    }
-                }
-            }
-            else
-            {
+            // Check if driver is available
+            if (!d.getstatus().equals("available")) {
                 out.writeUTF("not available");
+                return;
             }
+
+            out.writeUTF("available");
+
+            // Get all pending ride requests
+            if (Ride.pendingRides.isEmpty()) {
+                out.writeUTF("No ride requests available at the moment.");
+                return;
+            }
+
+            // Send all pending rides to driver
+            StringBuilder ridesList = new StringBuilder();
+            for (Map.Entry<String, Ride> entry : Ride.pendingRides.entrySet()) {
+                Ride ride = entry.getValue();
+                ridesList.append("Customer: ").append(ride.getCustomerUsername())
+                        .append(" | From: ").append(ride.getPickupLocation())
+                        .append(" | To: ").append(ride.getDropLocation())
+                        .append(" | Customer Fare: ").append(ride.getCustomerFare())
+                        .append("\n");
+            }
+            out.writeUTF(ridesList.toString());
+
+            // Get driver's choice
+            String chosenCustomer = in.readUTF();
+            Ride chosenRide = Ride.pendingRides.get(chosenCustomer);
+
+            if (chosenRide == null) {
+                out.writeUTF("FAILURE: Invalid ride selection or ride no longer available");
+                return;
+            }
+
+            out.writeUTF("SUCCESS: You have selected the ride request from " + chosenRide.getCustomerUsername());
+
+            // Get driver's fare offer
+            String driverFare = in.readUTF();
+
+            // Process the offer
+            chosenRide.setDriverFare(driverFare);
+            chosenRide.setDriverUsername(driverUsername);
+            chosenRide.setStatus("matched");
+
+            // Remove from pending rides since it's now matched
+            Ride.pendingRides.remove(chosenCustomer);
+
+            // Update driver status
+            d.setstatus("busy");
+            Driver.dcredentials.put(driverUsername, d);
+
+            out.writeUTF("SUCCESS: Fare offer submitted successfully!");
+            out.writeUTF(driverUsername);
+            out.writeUTF(driverFare);
+            out.writeUTF(chosenRide.getCustomerUsername());
+            out.writeUTF(chosenRide.getPickupLocation());
+            out.writeUTF(chosenRide.getDropLocation());
+            out.writeUTF("SUCCESS: Ride matched! You are now assigned to this ride.");
+
+            System.out.println("Driver " + driverUsername + " matched with customer " +
+                    chosenCustomer + " for fare " + driverFare);
         }
     }
 

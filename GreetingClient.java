@@ -57,7 +57,7 @@ public class GreetingClient {
                     System.out.println("Please enter your choice:");
                     int menuChoice = Integer.parseInt(mainBuffReader.readLine());
                     outToServer.writeUTF(String.valueOf(menuChoice));
-                    CustomerMenu(client,menuChoice);
+                    CustomerMenu(client, menuChoice);
                 }
             } else if (mainChoice == 2) {
                 if(handleDriver(client))
@@ -69,7 +69,7 @@ public class GreetingClient {
                     System.out.println("Please enter your choice:");
                     int menuChoice = Integer.parseInt(mainBuffReader.readLine());
                     outToServer.writeUTF(String.valueOf(menuChoice));
-                    DriverMenu(client,menuChoice);
+                    DriverMenu(client, menuChoice);
                 }
             } else {
                 System.out.println("Invalid choice. Exiting.");
@@ -176,8 +176,7 @@ public class GreetingClient {
         System.out.println("Server response: " + serverResponse);
         System.out.println("To Proceed, please log in with your username and password");
 
-        if( handleLogin(client, buffReader, isCustomer))
-        {
+        if (handleLogin(client, buffReader, isCustomer)) {
             return true;
         }
         return false;
@@ -210,18 +209,15 @@ public class GreetingClient {
         String serverResponse = inFromServer.readUTF();
         System.out.println("Server response: " + serverResponse);
 
-        if(isCustomer && serverResponse.equals("SUCCESS: Customer login successful"))
-        {
+        if (isCustomer && serverResponse.equals("SUCCESS: Customer login successful")) {
             System.out.println("Welcome customer, " + username + "!");
             return true;
         }
-        else if (isCustomer == false && serverResponse.equals("SUCCESS: Driver login successful"))
-        {
+        else if (!isCustomer && serverResponse.equals("SUCCESS: Driver login successful")) {
             System.out.println("Welcome driver, " + username + "!");
             return true;
         }
-        else
-        {
+        else {
             System.out.println("Login failed. Please try again.");
             return false;
         }
@@ -236,11 +232,11 @@ public class GreetingClient {
             System.out.println("Please enter your drop-off location:");
             String dropoffLocation = rideReader.readLine();
 
-            System.out.println("Please enter your fare offer:");
+            System.out.println("Please enter your suggested fare (in dollars):");
             String customerFare = rideReader.readLine();
 
             System.out.println("Ride requested from " + pickupLocation + " to " + dropoffLocation);
-            System.out.println("Customer fare: " + customerFare);
+            System.out.println("Your suggested fare: $" + customerFare);
 
             // Send data to server
             DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
@@ -256,142 +252,201 @@ public class GreetingClient {
             System.out.println("Server response: " + serverResponse);
 
             if (serverResponse.startsWith("SUCCESS")) {
-                System.out.println("Your ride request has been posted. Waiting for drivers...");
+                System.out.println("Your ride request has been posted. Waiting for driver bids...");
 
-                // Wait for driver assignment
-                String driverResponse = inFromServer.readUTF();
-                System.out.println("Update: " + driverResponse);
+                // Wait for bids
+                String bidsResponse = inFromServer.readUTF();
 
-                if (driverResponse.startsWith("SUCCESS")) {
-                    String driverUsername = inFromServer.readUTF();
-                    String driverFare = inFromServer.readUTF();
-                    System.out.println("Great news! A driver has accepted your ride request.");
-                    System.out.println("Driver: " + driverUsername);
-                    System.out.println("Fare: " + driverFare);
-                    System.out.println("Your ride has been confirmed!");
-                } else {
-                    System.out.println("Sorry, no drivers responded to your request in time.");
+                if (bidsResponse.equals("NO_BIDS")) {
+                    System.out.println("No bids received yet. Please check status later.");
+                    return;
+                }
+
+                if (bidsResponse.startsWith("SUCCESS")) {
+                    System.out.println("You've received bids from drivers!");
+
+                    // Get the list of bids
+                    String bidsList = inFromServer.readUTF();
+                    String[] bids = bidsList.split(";");
+
+                    System.out.println("\nAvailable driver bids:");
+                    for (int i = 0; i < bids.length; i++) {
+                        String[] bidDetails = bids[i].split(",");
+                        System.out.println((i+1) + ". Driver: " + bidDetails[0] + ", Fare: $" + bidDetails[1]);
+                    }
+
+                    System.out.println("\nSelect a bid to accept (1-" + bids.length + ") or 0 to reject all:");
+                    int bidChoice = Integer.parseInt(rideReader.readLine());
+
+                    outToServer.writeInt(bidChoice);
+
+                    String matchResult = inFromServer.readUTF();
+                    if (matchResult.startsWith("SUCCESS")) {
+                        String[] matchDetails = matchResult.substring(8).split(",");
+                        System.out.println("Ride confirmed with driver: " + matchDetails[0]);
+                        System.out.println("Agreed fare: $" + matchDetails[1]);
+                        System.out.println("Your driver will pick you up shortly. Enjoy your ride!");
+                    } else {
+                        System.out.println(matchResult);
+                    }
                 }
             } else {
                 System.out.println("Failed to post ride request: " + serverResponse);
             }
-
         } catch (IOException e) {
             System.out.println("Error processing ride request: " + e.getMessage());
+        }
+    }
+
+    private static void viewRideStatus(Socket client) {
+        try {
+            DataInputStream inFromServer = new DataInputStream(client.getInputStream());
+            String statusResponse = inFromServer.readUTF();
+
+            System.out.println(statusResponse);
+
+            if (statusResponse.startsWith("FAILURE")) {
+                System.out.println("No active rides found.");
+            }
+        } catch (IOException e) {
+            System.out.println("Error checking ride status: " + e.getMessage());
         }
     }
 
     private static void CustomerMenu(Socket client, int menuChoice) {
         switch (menuChoice) {
             case 1:
-                System.out.println("Requesting ride...");
                 handleRideRequest(client);
                 break;
             case 2:
-                System.out.println("Viewing ride status...");
-                // Logic for viewing ride status can be added here
+                viewRideStatus(client);
                 break;
             case 3:
-                System.out.println("Disconnecting...");
-                // Logic for disconnecting can be added here
+                System.out.println("Disconnecting from server...");
                 break;
             default:
-                System.out.println("Invalid choice. Please try again.");
-                break;
+                System.out.println("Invalid option selected.");
         }
     }
 
     private static void DriverMenu(Socket client, int menuChoice) throws IOException {
         switch (menuChoice) {
             case 1:
-                System.out.println("Viewing ride requests...");
                 OfferFare(client);
                 break;
             case 2:
-                System.out.println("Updating ride status...");
-                // Logic for updating ride status can be added here
+                updateRideStatus(client);
                 break;
             case 3:
-                System.out.println("Disconnecting...");
-                // Logic for disconnecting can be added here
+                System.out.println("Disconnecting from server...");
                 break;
             default:
-                System.out.println("Invalid choice. Please try again.");
-                break;
+                System.out.println("Invalid option selected.");
         }
     }
 
     private static void OfferFare(Socket client) throws IOException {
-        System.out.println("Checking if you are available to offer fare for ride requests...");
+        System.out.println("Checking your availability status...");
         DataInputStream inFromServer = new DataInputStream(client.getInputStream());
+        DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
+        BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
 
         String availabilityResponse = inFromServer.readUTF();
 
-        if(availabilityResponse.equals("available")){
-            System.out.println("You are available to offer fare for ride requests.");
+        if (availabilityResponse.equals("available")) {
+            System.out.println("You are available to offer fares for ride requests.");
             System.out.println("Checking for ride requests...");
 
             String rideRequests = inFromServer.readUTF();
 
-            if (rideRequests.equals("No ride requests available at the moment.")) {
+            if (rideRequests.equals("NO_REQUESTS")) {
                 System.out.println("No ride requests available at the moment.");
                 return;
             }
 
+            // Parse and display ride requests
             System.out.println("Available ride requests:");
-            System.out.println(rideRequests);
-            System.out.println("Please enter the customer username for the ride you want to offer fare:");
+            String[] requests = rideRequests.split(";");
+            for (int i = 0; i < requests.length; i++) {
+                String[] requestInfo = requests[i].split(",");
+                System.out.println((i+1) + ". Customer: " + requestInfo[0] +
+                                   ", From: " + requestInfo[1] +
+                                   ", To: " + requestInfo[2] +
+                                   ", Customer's suggested fare: $" + requestInfo[3]);
+            }
 
-            BufferedReader customerChoice = new BufferedReader(new InputStreamReader(System.in));
-            String customerUsername = customerChoice.readLine();
+            // Ask driver to select a ride to bid on
+            System.out.println("Enter the number of the ride you want to bid on (or 0 to cancel):");
+            int rideChoice = Integer.parseInt(input.readLine());
 
-            // Send ride choice to server
-            DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
-            outToServer.writeUTF(customerUsername);
-            System.out.println("Selected customer: " + customerUsername);
+            outToServer.writeInt(rideChoice);
 
-            // Read response from server
-            String serverResponse = inFromServer.readUTF();
-            System.out.println("Server response: " + serverResponse);
+            if (rideChoice == 0) {
+                System.out.println("Bid cancelled.");
+                return;
+            }
 
-            if (serverResponse.startsWith("SUCCESS")) {
-                System.out.println("Please enter your fare amount:");
-                String fareAmount = customerChoice.readLine();
-                outToServer.writeUTF(fareAmount);
-                System.out.println("Fare amount sent to server: " + fareAmount);
+            // Get ride details and ask for bid
+            String selectedRideDetails = inFromServer.readUTF();
+            System.out.println("Selected ride: " + selectedRideDetails);
 
-                // Read all the responses from server
-                String fareResponse = inFromServer.readUTF();
-                System.out.println("Server response: " + fareResponse);
+            System.out.println("Enter your fare offer (must be a number in dollars):");
+            String fareOffer = input.readLine();
+            outToServer.writeUTF(fareOffer);
 
-                if (fareResponse.startsWith("SUCCESS")) {
-                    String driverUsername = inFromServer.readUTF();
-                    String driverFare = inFromServer.readUTF();
-                    String customerName = inFromServer.readUTF();
-                    String pickupLocation = inFromServer.readUTF();
-                    String dropoffLocation = inFromServer.readUTF();
-                    String finalDecision = inFromServer.readUTF();
+            // Wait for server response
+            String bidResponse = inFromServer.readUTF();
+            System.out.println(bidResponse);
 
+            if (bidResponse.startsWith("SUCCESS")) {
+                System.out.println("Your bid has been submitted. Waiting for customer's decision...");
+                String customerDecision = inFromServer.readUTF();
+
+                if (customerDecision.startsWith("ACCEPTED")) {
+                    String[] rideInfo = customerDecision.substring(9).split(",");
+                    System.out.println("\nGreat news! The customer has accepted your bid.");
                     System.out.println("Ride details:");
-                    System.out.println("Driver: " + driverUsername);
-                    System.out.println("Customer: " + customerName);
-                    System.out.println("From: " + pickupLocation + " to " + dropoffLocation);
-                    System.out.println("Your offered fare: " + driverFare);
-                    System.out.println("Status: " + finalDecision);
-
-                    if (finalDecision.startsWith("SUCCESS")) {
-                        System.out.println("Congratulations! You have been assigned to this ride.");
-                        System.out.println("Please proceed to pick up the customer.");
-                    } else {
-                        System.out.println("Your fare offer has been submitted and is waiting for customer response.");
-                    }
+                    System.out.println("Customer: " + rideInfo[0]);
+                    System.out.println("Pickup: " + rideInfo[1]);
+                    System.out.println("Dropoff: " + rideInfo[2]);
+                    System.out.println("Agreed fare: $" + rideInfo[3]);
+                    System.out.println("Your status has been updated to 'busy'");
+                    System.out.println("Please proceed to pick up the customer.");
+                } else {
+                    System.out.println(customerDecision);
                 }
-            } else {
-                System.out.println("Failed to select ride. Please try again.");
             }
         } else {
-            System.out.println("You are not available to offer fare for ride requests at the moment.");
-            System.out.println("Status: " + availabilityResponse);
+            System.out.println("You are not available to offer fares at the moment.");
+            System.out.println("Current status: " + availabilityResponse);
+        }
+    }
+
+    private static void updateRideStatus(Socket client) {
+        try {
+            DataInputStream inFromServer = new DataInputStream(client.getInputStream());
+            DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
+            BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
+
+            String statusResponse = inFromServer.readUTF();
+            System.out.println(statusResponse);
+
+            if (statusResponse.startsWith("FAILURE")) {
+                System.out.println("No active assignments found.");
+                return;
+            }
+
+            String optionsResponse = inFromServer.readUTF();
+            System.out.println(optionsResponse);
+
+            int choice = Integer.parseInt(input.readLine());
+            outToServer.writeInt(choice);
+
+            String updateResponse = inFromServer.readUTF();
+            System.out.println(updateResponse);
+
+        } catch (IOException e) {
+            System.out.println("Error updating ride status: " + e.getMessage());
         }
     }
 }

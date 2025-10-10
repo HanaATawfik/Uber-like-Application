@@ -345,7 +345,7 @@
                     }
                 }
 
-                private void processRideRequest() throws IOException {
+private void processRideRequest() throws IOException {
                     String pickupLocation = in.readUTF();
                     String dropLocation = in.readUTF();
                     String customerFare = in.readUTF();
@@ -365,8 +365,40 @@
                     out.writeUTF("SUCCESS: Ride request posted with ID: " + rideId +
                             ". Suggested fare: $" + customerFare +
                             ". Waiting for driver bids.");
-                }
 
+                    // Create a separate thread to monitor for new bids
+                    Thread bidMonitorThread = new Thread(() -> {
+                        try {
+                            int lastSentBidCount = 0;
+                            while (running && ride.getStatus().equals("PENDING")) {
+                                // Check if there are new bids
+                                int currentBidCount = ride.getBids().size();
+                                if (currentBidCount > lastSentBidCount) {
+                                    // Get only the new bids
+                                    List<Bid> newBids = ride.getBids().subList(lastSentBidCount, currentBidCount);
+
+                                    // Send notifications for each new bid
+                                    for (Bid bid : newBids) {
+                                        sendMessage("BID_NOTIFICATION:" + bid.getDriverUsername() + ":" +
+                                                bid.getFareOffer() + ":" + rideId);
+                                    }
+
+                                    // Update the counter
+                                    lastSentBidCount = currentBidCount;
+                                }
+
+                                // Wait for 1 second before checking again
+                                Thread.sleep(1000);
+                            }
+                        } catch (InterruptedException e) {
+                            System.out.println("Bid monitoring thread interrupted for ride: " + rideId);
+                        }
+                    });
+
+                    // Set as daemon thread so it terminates when main thread ends
+                    bidMonitorThread.setDaemon(true);
+                    bidMonitorThread.start();
+                }
                 private void viewRideStatus() throws IOException {
                     // Find the customer's active ride
                     Ride activeRide = null;
@@ -396,8 +428,20 @@
                     }
                 }
 
-                private void acceptDriverBid() throws IOException {
+            private void acceptDriverBid() throws IOException {
                     String driverUsername = in.readUTF();
+
+                    // First check if driver exists and is available
+                    Driver assignedDriver = Driver.dcredentials.get(driverUsername);
+                    if (assignedDriver == null) {
+                        out.writeUTF("FAILURE: Driver not found in the system.");
+                        return;
+                    }
+
+                    if (!assignedDriver.getStatus().equals("available")) {
+                        out.writeUTF("FAILURE: Driver is no longer available. They may have accepted another ride.");
+                        return;
+                    }
 
                     // Find customer's pending ride
                     Ride pendingRide = null;
@@ -414,7 +458,7 @@
                         return;
                     }
 
-                    // Find the bid from this driver - Fixed: No casting needed with Bid type
+                    // Find the bid from this driver
                     Bid acceptedBid = null;
                     for (Bid bid : pendingRide.getBids()) {
                         if (bid.getDriverUsername().equals(driverUsername)) {
@@ -431,13 +475,11 @@
                     // Assign the ride
                     pendingRide.setDriverUsername(driverUsername);
                     pendingRide.setStatus("ASSIGNED");
+                    assignedDriver.setStatus("busy");
 
-                    Driver assignedDriver = Driver.dcredentials.get(driverUsername);
-                    if (assignedDriver != null) {
-                        assignedDriver.setStatus("busy");
-                    }
-
-                    out.writeUTF("SUCCESS: Ride assigned to driver " + driverUsername +
+                    // Send confirmation to customer
+                    out.writeUTF("SUCCESS: Ride " + pendingRide.getRideId() +
+                            " assigned to driver " + driverUsername +
                             " with fare $" + acceptedBid.getFareOffer());
 
                     // Notify the driver
@@ -445,18 +487,31 @@
                     if (driverHandler != null) {
                         driverHandler.sendMessage("SUCCESS: Customer " + username +
                                 " accepted your bid of $" + acceptedBid.getFareOffer() +
-                                " for ride " + pendingRide.getRideId());
+                                " for ride " + pendingRide.getRideId() +
+                                " from " + pendingRide.getPickupLocation() +
+                                " to " + pendingRide.getDropLocation());
+                    }
+
+                    // Notify other drivers who bid on this ride that it's been assigned
+                    for (Bid bid : pendingRide.getBids()) {
+                        String otherDriverUsername = bid.getDriverUsername();
+                        if (!otherDriverUsername.equals(driverUsername)) {
+                            ClientHandler otherDriverHandler = activeDrivers.get(otherDriverUsername);
+                            if (otherDriverHandler != null) {
+                                otherDriverHandler.sendMessage("INFO: Ride " + pendingRide.getRideId() +
+                                        " has been assigned to another driver.");
+                            }
+                        }
                     }
 
                     System.out.println("Ride " + pendingRide.getRideId() + " assigned to driver " + driverUsername);
                 }
-
                 private void offerRideFare() throws IOException {
                     System.out.println("Processing driver menu selection: 1");
                     System.out.println("Driver chose to Offer Ride Fare");
 
                     Driver currentDriver = Driver.dcredentials.get(username);
-                    if (currentDriver == null || !currentDriver.getStatus().equals("available")) {
+                    if (currentDriver == null || !currentDriver.getStatus().equals("available")) { //SOMETHING WRONG HAPPENING HERE //I GET NO RESPONSE BACK FROM SERVER
                         out.writeUTF("FAILURE: You are not available to bid on rides.");
                         return;
                     }
@@ -465,7 +520,7 @@
                     List<Ride> pendingRides = new ArrayList<>();
                     for (Ride ride : Ride.rides.values()) {
                         if (ride.getStatus().equals("PENDING")) {
-                            pendingRides.add(ride);
+                            pendingRides.add(ride);  //NEED THIS TO BE REGULARLY UPDATED AND SHOWED
                         }
                     }
 

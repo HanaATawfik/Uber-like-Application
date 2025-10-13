@@ -7,7 +7,7 @@
 
         public class GreetingServer extends Thread {
             private ServerSocket serverSocket = null;
-            private static final int TIMEOUT = 1000000;
+            private static final int TIMEOUT = 0;
             private static final AtomicInteger rideIdCounter = new AtomicInteger(1);
 
             // Active client connections
@@ -345,7 +345,7 @@
                     }
                 }
 
-private void processRideRequest() throws IOException {
+                private void processRideRequest() throws IOException {
                     String pickupLocation = in.readUTF();
                     String dropLocation = in.readUTF();
                     String customerFare = in.readUTF();
@@ -428,7 +428,7 @@ private void processRideRequest() throws IOException {
                     }
                 }
 
-            private void acceptDriverBid() throws IOException {
+                private void acceptDriverBid() throws IOException {
                     String driverUsername = in.readUTF();
 
                     // First check if driver exists and is available

@@ -237,7 +237,7 @@
                     }
                 }
 
-private static void handleRideRequest() {
+                private static void handleRideRequest() {
                     try {
                         System.out.print("Please enter your pickup location: ");
                         String pickupLocation = userInput.readLine();
@@ -279,7 +279,7 @@ private static void handleRideRequest() {
                     }
                 }
 
-private static void handleAcceptBid() {
+                private static void handleAcceptBid() {
     try {
         if (receivedBids.isEmpty()) {
             System.out.println("No bids have been received yet.");
@@ -335,7 +335,7 @@ private static void handleAcceptBid() {
                             while (running) {
                                 if (inFromServer.available() > 0) {
                                     String message = inFromServer.readUTF();
-// Then in the ServerListener class, modify the BID_NOTIFICATION handler:
+                            // Then in the ServerListener class, modify the BID_NOTIFICATION handler:
                                     if (message.startsWith("BID_NOTIFICATION:")) {
                                         // Format: BID_NOTIFICATION:driverUsername:fare:rideId
                                         String[] parts = message.substring(17).split(":");

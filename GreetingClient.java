@@ -336,19 +336,27 @@
                                 if (inFromServer.available() > 0) {
                                     String message = inFromServer.readUTF();
                             // Then in the ServerListener class, modify the BID_NOTIFICATION handler:
-                                    if (message.startsWith("BID_NOTIFICATION:")) {
-                                        // Format: BID_NOTIFICATION:driverUsername:fare:rideId
-                                        String[] parts = message.substring(17).split(":");
-                                        System.out.println("\n*** NEW BID RECEIVED ***");
-                                        System.out.println("Driver: " + parts[0]);
-                                        System.out.println("Offered Fare: $" + parts[1]);
-                                        System.out.println("Ride ID: " + parts[2]);
-                                        System.out.println("Use option 3 to accept this bid.");
-                                        System.out.println("************************\n");
+                                 if (message.startsWith("BID_NOTIFICATION:")) {      //FOR CUSTOMER INTERFACE
+                                     // Format: BID_NOTIFICATION:driverUsername:fare:rideId
+                                     String bidInfo = message.substring("BID_NOTIFICATION:".length());
+                                     String[] parts = bidInfo.split(":");
 
-                                        // Store the bid for later reference
-                                        receivedBids.add(new String[]{parts[0], parts[1], parts[2]});
-                                    } if (message.startsWith("RIDE_REQUESTS:")) {
+                                     if (parts.length >= 3) {
+                                         System.out.println("\n*** NEW BID RECEIVED ***");
+                                         System.out.println("Driver: " + parts[0]);
+                                         System.out.println("Offered Fare: $" + parts[1]);
+                                         System.out.println("Ride ID: " + parts[2]);
+                                         System.out.println("Use option 3 to accept this bid.");
+                                         System.out.println("************************\n");
+
+                                         // Store the bid for later reference
+                                         receivedBids.add(new String[]{parts[0], parts[1], parts[2]});
+                                     } else {
+                                         System.out.println("Received malformed bid notification: " + message);
+                                     }
+                                 }
+
+                                    if (message.startsWith("RIDE_REQUESTS:")) {    //FOR DRIVER INTERFACE
                                         // For drivers - display available rides
                                         String[] rides = message.substring(14).split("\\|");
                                         System.out.println("\nAvailable ride requests:");

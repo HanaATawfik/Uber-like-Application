@@ -511,9 +511,11 @@
                     System.out.println("Driver chose to Offer Ride Fare");
 
                     Driver currentDriver = Driver.dcredentials.get(username);
-                    if (currentDriver == null || !currentDriver.getStatus().equals("available")) {
+                   if (currentDriver == null || !currentDriver.getStatus().equals("available")) {
                         out.writeUTF("FAILURE: You are not available to bid on rides.");
                         return;
+                    } else {
+                        out.writeUTF("INFO: You are available and can bid on rides.");
                     }
 
                     // Get all pending rides

@@ -12,7 +12,8 @@
                 private static volatile boolean running = true;
                 private static String currentUsername = null;
                 private static boolean isCustomer = false;
-
+                private static volatile boolean waitingForRideRequests = false;
+                private static final Object rideRequestsLock = new Object();
                 private static List<String[]> receivedBids = new ArrayList<>();
 
 
@@ -306,12 +307,26 @@
         System.out.println("Error accepting bid: " + e.getMessage());
     }
 }
-                private static void handleOfferFare() {
+             private static void handleOfferFare() {
                     try {
                         System.out.println("Checking your availability status...");
-                        // Server will respond with availability and ride requests
+
+                        // Set a flag that ServerListener should handle the next RIDE_REQUESTS message
+                        waitingForRideRequests = true;
+
+                        // Wait for ServerListener to complete the interaction
+                        synchronized (rideRequestsLock) {
+                            try {
+                                rideRequestsLock.wait(30000); // Wait up to 30 seconds
+                            } catch (InterruptedException e) {
+                                System.out.println("Waiting interrupted.");
+                            }
+                        }
+
                     } catch (Exception e) {
                         System.out.println("Error: " + e.getMessage());
+                    } finally {
+                        waitingForRideRequests = false;
                     }
                 }
 
@@ -356,7 +371,7 @@
                                      }
                                  }
 
-                                    if (message.startsWith("RIDE_REQUESTS:")) {    //FOR DRIVER INTERFACE
+                                    if (message.startsWith("RIDE_REQUESTS:")) {
                                         // For drivers - display available rides
                                         String[] rides = message.substring(14).split("\\|");
                                         System.out.println("\nAvailable ride requests:");
@@ -379,9 +394,18 @@
                                                 outToServer.writeUTF(fare);
                                             }
                                         }
-                                    } else if (message.startsWith("SUCCESS:") || message.startsWith("FAILURE:") || message.startsWith("INFO:")) {
+
+                                        // After all processing is complete:
+                                        synchronized (rideRequestsLock) {
+                                            rideRequestsLock.notify();
+                                        }
+
+                                    }
+
+                                    else if (message.startsWith("SUCCESS:") || message.startsWith("FAILURE:") || message.startsWith("INFO:")) {
                                         System.out.println("\n" + message);
-                                    } else {
+                                    }
+                                    else {
                                         System.out.println("\nServer: " + message);
                                     }
                                 }

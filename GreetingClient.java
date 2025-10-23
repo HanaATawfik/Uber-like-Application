@@ -280,7 +280,7 @@
                         }
                     }
 
-                    private static void handleAcceptBid() {
+private static void handleAcceptBid() {
                         try {
                             if (receivedBids.isEmpty()) {
                                 System.out.println("No bids have been received yet.");
@@ -297,9 +297,32 @@
                             int bidChoice = Integer.parseInt(userInput.readLine());
 
                             if (bidChoice > 0 && bidChoice <= receivedBids.size()) {
-                                String driverToAccept = receivedBids.get(bidChoice - 1)[0];
+                                String[] selectedBid = receivedBids.get(bidChoice - 1);
+                                String driverToAccept = selectedBid[0];
+                                String rideId = selectedBid[2];
+
                                 outToServer.writeUTF(driverToAccept);
                                 System.out.println("Accepting bid from driver: " + driverToAccept);
+
+                                // Wait for server confirmation
+                                String serverResponse = inFromServer.readUTF();
+                                System.out.println(serverResponse);
+
+                                // If bid was successfully accepted, remove all bids for this ride
+                                if (serverResponse.startsWith("SUCCESS:")) {
+                                    // Remove all bids for this ride
+                                    List<String[]> bidsToRemove = new ArrayList<>();
+                                    for (String[] bid : receivedBids) {
+                                        if (bid[2].equals(rideId)) {
+                                            bidsToRemove.add(bid);
+                                        }
+                                    }
+
+                                    receivedBids.removeAll(bidsToRemove);
+                                    System.out.println("All bids for ride " + rideId + " have been cleared.");
+                                }
+                            } else if (bidChoice != 0) {
+                                System.out.println("Invalid selection.");
                             } else {
                                 System.out.println("No bid selected.");
                             }
@@ -307,30 +330,71 @@
                             System.out.println("Error accepting bid: " + e.getMessage());
                         }
                     }
+private static void handleOfferFare() {
+    try {
+        System.out.println("Checking your availability status...");
 
-                    private static void handleOfferFare() {
-                        try {
-                            System.out.println("Checking your availability status...");
+        // Server will respond with availability status first
+        String availabilityResponse = inFromServer.readUTF();
+        System.out.println(availabilityResponse);
 
-                            // Set a flag that ServerListener should handle the next RIDE_REQUESTS message
-                            waitingForRideRequests = true;
+        // If driver is not available, return to menu
+        if (availabilityResponse.startsWith("FAILURE:")) {
+            return;
+        }
 
-                            // Wait for ServerListener to complete the interaction
-                            synchronized (rideRequestsLock) {
-                                try {
-                                    rideRequestsLock.wait(30000); // Wait up to 30 seconds
-                                } catch (InterruptedException e) {
-                                    System.out.println("Waiting interrupted.");
-                                }
-                            }
+        // Process ride requests only if driver is available
+        String rideRequestsMessage = inFromServer.readUTF();
 
-                        } catch (Exception e) {
-                            System.out.println("Error: " + e.getMessage());
-                        } finally {
-                            waitingForRideRequests = false;
-                        }
-                    }
+        if (rideRequestsMessage.startsWith("INFO: No ride requests")) {
+            // No rides available
+            System.out.println(rideRequestsMessage);
+            return;
+        }
 
+        if (rideRequestsMessage.startsWith("RIDE_REQUESTS:")) {
+            // Display available rides
+            String[] rides = rideRequestsMessage.substring("RIDE_REQUESTS:".length()).split("\\|");
+            System.out.println("\nAvailable ride requests:");
+            for (int i = 0; i < rides.length; i++) {
+                System.out.println((i + 1) + ". " + rides[i]);
+            }
+
+            System.out.print("Enter the number of the ride you want to bid on (or 0 to cancel): ");
+            String choice = userInput.readLine();
+            outToServer.writeUTF(choice);
+
+            if (choice.equals("0")) {
+                // User canceled
+                String cancelResponse = inFromServer.readUTF();
+                System.out.println(cancelResponse);
+                return;
+            }
+
+            // Get response about selected ride
+            String selectedRideResponse = inFromServer.readUTF();
+            System.out.println(selectedRideResponse);
+
+            if (selectedRideResponse.startsWith("FAILURE:")) {
+                // Invalid selection
+                return;
+            }
+
+            if (selectedRideResponse.startsWith("Selected ride:")) {
+                // Get fare offer from driver
+                System.out.print("Enter your fare offer (in dollars): ");
+                String fare = userInput.readLine();
+                outToServer.writeUTF(fare);
+
+                // Get final confirmation
+                String bidConfirmation = inFromServer.readUTF();
+                System.out.println(bidConfirmation);
+            }
+        }
+    } catch (IOException e) {
+        System.out.println("Error processing ride bids: " + e.getMessage());
+    }
+}
                     private static void cleanup() {
                         running = false;
                         try {
@@ -343,7 +407,7 @@
                     }
 
                     // Listener thread to handle incoming messages from server
-                    static class ServerListener implements Runnable {
+static class ServerListener implements Runnable {
                         @Override
                         public void run() {
                             try {
@@ -368,57 +432,6 @@
                                                 receivedBids.add(new String[]{parts[0], parts[1], parts[2]});
                                             } else {
                                                 System.out.println("Received malformed bid notification: " + message);
-                                            }
-                                        } else if (message.startsWith("RIDE_REQUESTS:") && waitingForRideRequests) {
-                                            // For drivers - display available rides
-                                            String[] rides = message.substring(14).split("\\|");
-                                            System.out.println("\nAvailable ride requests:");
-                                            for (int i = 0; i < rides.length; i++) {
-                                                System.out.println((i + 1) + ". " + rides[i]);
-                                            }
-                                            System.out.print("Enter the number of the ride you want to bid on (or 0 to cancel): ");
-
-                                            try {
-                                                // Read user's choice
-                                                String choice = userInput.readLine();
-                                                outToServer.writeUTF(choice);
-
-                                                if (!choice.equals("0")) {
-                                                    String response = inFromServer.readUTF();
-                                                    System.out.println(response);
-
-                                                    if (response.startsWith("Selected ride:")) {
-                                                        System.out.print("Enter your fare offer (in dollars): ");
-                                                        String fare = userInput.readLine();
-                                                        outToServer.writeUTF(fare);
-                                                    }
-                                                }
-                                            } catch (IOException e) {
-                                                System.out.println("Error processing ride selection: " + e.getMessage());
-                                            } finally {
-                                                // After all processing is complete:
-                                                synchronized (rideRequestsLock) {
-                                                    waitingForRideRequests = false;
-                                                    rideRequestsLock.notify();
-                                                }
-                                            }
-                                        } else if (message.startsWith("FAILURE:") && waitingForRideRequests) {
-                                            // Driver is unavailable, display the message
-                                            System.out.println("\n" + message);
-
-                                            // Notify waiting thread
-                                            synchronized (rideRequestsLock) {
-                                                waitingForRideRequests = false;
-                                                rideRequestsLock.notify();
-                                            }
-                                        } else if (message.startsWith("INFO:") && waitingForRideRequests) {
-                                            // Handle INFO message for driver availability
-                                            System.out.println("\n" + message);
-
-                                            // Notify waiting thread if it's a response about availability
-                                            synchronized (rideRequestsLock) {
-                                                waitingForRideRequests = false;
-                                                rideRequestsLock.notify();
                                             }
                                         } else if (message.startsWith("SUCCESS:") || message.startsWith("FAILURE:") || message.startsWith("INFO:")) {
                                             System.out.println("\n" + message);

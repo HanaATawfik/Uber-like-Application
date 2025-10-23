@@ -345,7 +345,7 @@
                     }
                 }
 
-                private void processRideRequest() throws IOException {
+private void processRideRequest() throws IOException {
                     String pickupLocation = in.readUTF();
                     String dropLocation = in.readUTF();
                     String customerFare = in.readUTF();
@@ -366,40 +366,9 @@
                             ". Suggested fare: $" + customerFare +
                             ". Waiting for driver bids.");
 
-                    // Create a separate thread to monitor for new bids
-                    Thread bidMonitorThread = new Thread(() -> {
-                        try {
-                            int lastSentBidCount = 0;
-                            while (running && ride.getStatus().equals("PENDING")) {
-                                // Check if there are new bids
-                                int currentBidCount = ride.getBids().size();
-                                if (currentBidCount > lastSentBidCount) {
-                                    // Get only the new bids
-                                    List<Bid> newBids = ride.getBids().subList(lastSentBidCount, currentBidCount);
-
-                                    // Send notifications for each new bid
-                                    for (Bid bid : newBids) {
-                                        sendMessage("BID_NOTIFICATION:" + bid.getDriverUsername() + ":" +
-                                                bid.getFareOffer() + ":" + rideId);
-                                    }
-
-                                    // Update the counter
-                                    lastSentBidCount = currentBidCount;
-                                }
-
-                                // Wait for 1 second before checking again
-                                Thread.sleep(1000);
-                            }
-                        } catch (InterruptedException e) {
-                            System.out.println("Bid monitoring thread interrupted for ride: " + rideId);
-                        }
-                    });
-
-                    // Set as daemon thread so it terminates when main thread ends
-                    bidMonitorThread.setDaemon(true);
-                    bidMonitorThread.start();
-                }
-                private void viewRideStatus() throws IOException {
+                    // We're removing the bid monitoring thread since bids are now notified directly
+                    // in the offerRideFare() method when a driver submits a bid
+                }                private void viewRideStatus() throws IOException {
                     // Find the customer's active ride
                     Ride activeRide = null;
                     for (Ride ride : Ride.rides.values()) {

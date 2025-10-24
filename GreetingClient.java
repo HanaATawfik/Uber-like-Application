@@ -134,7 +134,7 @@
                                         handleOfferFare();
                                         break;
                                     case 2:
-                                        System.out.println("Feature not implemented yet");
+                                        handleUpdateRideStatus();
                                         break;
                                     case 3:
                                         System.out.println("Disconnecting...");
@@ -330,6 +330,37 @@ private static void handleAcceptBid() {
                             System.out.println("Error accepting bid: " + e.getMessage());
                         }
                     }
+
+                    private static void handleUpdateRideStatus() {
+                        try {
+                            // Server will send current ride status
+                            String statusMessage = inFromServer.readUTF();
+
+                            if (statusMessage.startsWith("INFO: You have no active ride")) {
+                                System.out.println(statusMessage);
+                                return;
+                            }
+
+                            if (statusMessage.startsWith("RIDE_STATUS_MENU:")) {
+                                String currentStatus = statusMessage.substring("RIDE_STATUS_MENU:".length());
+                                System.out.println(currentStatus);
+                                System.out.println("\nUpdate ride status:");
+                                System.out.println("1. Start Ride");
+                                System.out.println("2. Complete Ride");
+                                System.out.println("3. Cancel");
+                                System.out.print("Enter your choice: ");
+
+                                String choice = userInput.readLine();
+                                outToServer.writeUTF(choice);
+
+                                String response = inFromServer.readUTF();
+                                System.out.println(response);
+                            }
+                        } catch (IOException e) {
+                            System.out.println("Error updating ride status: " + e.getMessage());
+                        }
+                    }
+
 private static void handleOfferFare() {
     try {
         System.out.println("Checking your availability status...");
@@ -408,51 +439,54 @@ private static void handleOfferFare() {
 
                     // Listener thread to handle incoming messages from server
 static class ServerListener implements Runnable {
-                        @Override
-                        public void run() {
-                            try {
-                                while (running) {
-                                    if (inFromServer.available() > 0) {
-                                        String message = inFromServer.readUTF();
+    @Override
+    public void run() {
+        try {
+            while (running) {
+                if (inFromServer.available() > 0) {
+                    String message = inFromServer.readUTF();
 
-                                        if (message.startsWith("BID_NOTIFICATION:")) {
-                                            // Format: BID_NOTIFICATION:driverUsername:fare:rideId
-                                            String bidInfo = message.substring("BID_NOTIFICATION:".length());
-                                            String[] parts = bidInfo.split(":");
+                    if (message.startsWith("BID_NOTIFICATION:")) {
+                        String bidInfo = message.substring("BID_NOTIFICATION:".length());
+                        String[] parts = bidInfo.split(":");
 
-                                            if (parts.length >= 3) {
-                                                System.out.println("\n*** NEW BID RECEIVED ***");
-                                                System.out.println("Driver: " + parts[0]);
-                                                System.out.println("Offered Fare: $" + parts[1]);
-                                                System.out.println("Ride ID: " + parts[2]);
-                                                System.out.println("Use option 3 to accept this bid.");
-                                                System.out.println("************************\n");
+                        if (parts.length >= 3) {
+                            System.out.println("\n*** NEW BID RECEIVED ***");
+                            System.out.println("Driver: " + parts[0]);
+                            System.out.println("Offered Fare: $" + parts[1]);
+                            System.out.println("Ride ID: " + parts[2]);
+                            System.out.println("Use option 3 to accept this bid.");
+                            System.out.println("************************\n");
 
-                                                // Store the bid for later reference
-                                                receivedBids.add(new String[]{parts[0], parts[1], parts[2]});
-                                            } else {
-                                                System.out.println("Received malformed bid notification: " + message);
-                                            }
-                                        } else if (message.startsWith("SUCCESS:") || message.startsWith("FAILURE:") || message.startsWith("INFO:")) {
-                                            System.out.println("\n" + message);
-                                        } else {
-                                            System.out.println("\nServer: " + message);
-                                        }
-                                    }
-
-                                    // Small delay to prevent CPU spinning
-                                    try {
-                                        Thread.sleep(100);
-                                    } catch (InterruptedException e) {
-                                        // Ignore interruption
-                                    }
-                                }
-                            } catch (IOException e) {
-                                if (running) {
-                                    System.out.println("Connection to server lost.");
-                                    running = false;
-                                }
-                            }
+                            receivedBids.add(new String[]{parts[0], parts[1], parts[2]});
                         }
+                    } else if (message.startsWith("SUCCESS: Customer")) {
+                        // Driver's bid was accepted
+                        System.out.println("\n*** BID ACCEPTED ***");
+                        System.out.println(message);
+                        System.out.println("Your bid has been accepted!");
+                        System.out.println("You can now update the ride status using menu option 2.");
+                        System.out.println("********************\n");
+                        System.out.print("Press Enter to continue...");
+                    } else if (message.startsWith("SUCCESS:") || message.startsWith("FAILURE:") || message.startsWith("INFO:")) {
+                        System.out.println("\n" + message);
+                    } else {
+                        System.out.println("\nServer: " + message);
                     }
+                }
+
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    // Ignore
+                }
+            }
+        } catch (IOException e) {
+            if (running) {
+                System.out.println("Connection to server lost.");
+                running = false;
+            }
+        }
+    }
+}
                 }

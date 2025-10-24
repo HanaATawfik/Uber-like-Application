@@ -553,9 +553,64 @@ private void processRideRequest() throws IOException {
                     }
                 }
 
-                private void updateRideStatus() throws IOException {
-                    out.writeUTF("INFO: Feature not implemented yet");
-                }
+              private void updateRideStatus() throws IOException {
+                  // Find the driver's assigned ride
+                  Ride assignedRide = null;
+                  for (Ride ride : Ride.rides.values()) {
+                      if (username.equals(ride.getDriverUsername()) &&
+                          !ride.getStatus().equals("COMPLETED")) {
+                          assignedRide = ride;
+                          break;
+                      }
+                  }
+
+                  if (assignedRide == null) {
+                      out.writeUTF("INFO: You have no active ride to update.");
+                      return;
+                  }
+
+                  out.writeUTF("RIDE_STATUS_MENU:Current Status: " + assignedRide.getStatus());
+
+                  String statusChoice = in.readUTF();
+
+                  switch (statusChoice) {
+                      case "1": // Start ride
+                          if (assignedRide.getStatus().equals("ASSIGNED")) {
+                              assignedRide.setStatus("IN_PROGRESS");
+                              out.writeUTF("SUCCESS: Ride status updated to IN_PROGRESS");
+
+                              ClientHandler customerHandler = activeCustomers.get(assignedRide.getCustomerUsername());
+                              if (customerHandler != null) {
+                                  customerHandler.sendMessage("INFO: Your driver has started the ride.");
+                              }
+                          } else {
+                              out.writeUTF("FAILURE: Ride cannot be started from current status.");
+                          }
+                          break;
+
+                      case "2": // Complete ride
+                          if (assignedRide.getStatus().equals("IN_PROGRESS")) {
+                              assignedRide.setStatus("COMPLETED");
+                              driver.setStatus("available");
+                              out.writeUTF("SUCCESS: Ride completed. You are now available for new rides.");
+
+                              ClientHandler customerHandler = activeCustomers.get(assignedRide.getCustomerUsername());
+                              if (customerHandler != null) {
+                                  customerHandler.sendMessage("SUCCESS: Your ride has been completed by driver " + username);
+                              }
+                          } else {
+                              out.writeUTF("FAILURE: Ride must be in progress to complete.");
+                          }
+                          break;
+
+                      case "3": // Cancel
+                          out.writeUTF("INFO: Status update cancelled.");
+                          break;
+
+                      default:
+                          out.writeUTF("FAILURE: Invalid choice.");
+                  }
+              }
 
                 private void cleanup() {
                     running = false;

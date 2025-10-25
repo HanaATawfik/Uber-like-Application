@@ -461,13 +461,17 @@ static class ServerListener implements Runnable {
                             receivedBids.add(new String[]{parts[0], parts[1], parts[2]});
                         }
                     } else if (message.startsWith("SUCCESS: Customer")) {
-                        // Driver's bid was accepted
-                        System.out.println("\n*** BID ACCEPTED ***");
+                        // Driver's bid was accepted - just display and return to menu
+                        System.out.println("\n╔════════════════════════════════╗");
+                        System.out.println("║     BID ACCEPTED!              ║");
+                        System.out.println("╚════════════════════════════════╝");
                         System.out.println(message);
-                        System.out.println("Your bid has been accepted!");
-                        System.out.println("You can now update the ride status using menu option 2.");
-                        System.out.println("********************\n");
-                        System.out.print("Press Enter to continue...");
+                        System.out.println("\nYou can now update the ride status using menu option 2.");
+                        System.out.println("Your status has been set to BUSY.\n");
+                        // Don't wait for Enter - let the driver continue with the menu
+                    } else if (message.startsWith("INFO: Ride")) {
+                        // Notification that ride was assigned to another driver
+                        System.out.println("\n" + message);
                     } else if (message.startsWith("SUCCESS:") || message.startsWith("FAILURE:") || message.startsWith("INFO:")) {
                         System.out.println("\n" + message);
                     } else {
@@ -489,4 +493,5 @@ static class ServerListener implements Runnable {
         }
     }
 }
+
                 }

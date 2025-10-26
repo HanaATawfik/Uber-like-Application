@@ -3,7 +3,7 @@
                 import java.net.*;
                 import java.util.ArrayList;
                 import java.util.List;
-
+                import java.util.Arrays;
                 public class GreetingClient {
                     private static Socket client;
                     private static DataOutputStream outToServer;
@@ -16,176 +16,227 @@
                     private static final Object rideRequestsLock = new Object();
                     private static List<String[]> receivedBids = new ArrayList<>();
 
+                    static class Menu {
+                        private final String title;
+                        private final List<String> options;
+                        private final BufferedReader input;
 
-                    public static void main(String[] args) {
-                        if (args.length < 2) {
-                            System.out.println("Usage: java GreetingClient <server> <port>");
-                            return;
+                        public Menu(String title, List<String> options, BufferedReader input) {
+                            this.title = title;
+                            this.options = options;
+                            this.input = input;
                         }
 
-                        String serverName = args[0];
-                        int port;
-
-                        try {
-                            port = Integer.parseInt(args[1]);
-                        } catch (NumberFormatException e) {
-                            System.out.println("Error: Port must be a valid number");
-                            return;
-                        }
-
-                        try {
-                            System.out.println("Connecting to " + serverName + " on port " + port);
-                            client = new Socket(serverName, port);
-                            System.out.println("Just connected to " + client.getRemoteSocketAddress());
-
-                            outToServer = new DataOutputStream(client.getOutputStream());
-                            inFromServer = new DataInputStream(client.getInputStream());
-                            userInput = new BufferedReader(new InputStreamReader(System.in));
-
-                            // Display main menu
-                            System.out.println("Please choose whether you are a Customer or a Driver by either entering 1 or 2");
-                            System.out.println("1. Customer");
-                            System.out.println("2. Driver");
-
-                            int mainChoice = Integer.parseInt(userInput.readLine());
-                            outToServer.writeUTF(String.valueOf(mainChoice));
-
-                            if (mainChoice == 1) {
-                                isCustomer = true;
-                                if (handleCustomer()) {
-                                    // Start listener thread for incoming messages
-                                    Thread listenerThread = new Thread(new ServerListener());
-                                    listenerThread.setDaemon(true);
-                                    listenerThread.start();
-
-                                    customerMainLoop();
-                                }
-                            } else if (mainChoice == 2) {
-                                isCustomer = false;
-                                if (handleDriver()) {
-                                    // Start listener thread for incoming messages
-                                    Thread listenerThread = new Thread(new ServerListener());
-                                    listenerThread.setDaemon(true);
-                                    listenerThread.start();
-
-                                    driverMainLoop();
-                                }
-                            } else {
-                                System.out.println("Invalid choice. Exiting.");
+                        public int display() throws IOException {
+                            System.out.println("\n=== " + title + " ===");
+                            for (int i = 0; i < options.size(); i++) {
+                                System.out.println((i + 1) + ". " + options.get(i));
                             }
+                            System.out.print("Please enter your choice: ");
+                            return Integer.parseInt(input.readLine());
+                        }
 
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        } finally {
-                            cleanup();
+                        public static Menu createMainMenu(BufferedReader input) {
+                            return new Menu("Main Menu",
+                                Arrays.asList("Customer", "Driver"),
+                                input);
+                        }
+
+                        public static Menu createAuthMenu(BufferedReader input) {
+                            return new Menu("Authentication",
+                                Arrays.asList("Sign up", "Log in"),
+                                input);
+                        }
+
+                        public static Menu createCustomerMenu(BufferedReader input) {
+                            return new Menu("Customer Menu",
+                                Arrays.asList("Request Ride", "View ride status", "Accept a driver bid", "Disconnect"),
+                                input);
+                        }
+
+                        public static Menu createDriverMenu(BufferedReader input) {
+                            return new Menu("Driver Menu",
+                                Arrays.asList("View and bid on ride requests", "Update ride status", "Disconnect"),
+                                input);
+                        }
+
+                        public static Menu createRideStatusMenu(BufferedReader input) {
+                            return new Menu("Update Ride Status",
+                                Arrays.asList("Start Ride", "Complete Ride", "Cancel"),
+                                input);
                         }
                     }
 
-                    private static void customerMainLoop() {
-                        try {
-                            while (running) {
-                                System.out.println("\n=== Customer Menu ===");
-                                System.out.println("1. Request Ride");
-                                System.out.println("2. View ride status");
-                                System.out.println("3. Accept a driver bid");
-                                System.out.println("4. Disconnect");
-                                System.out.print("Please enter your choice: ");
+             public static void main(String[] args) {
+                 if (args.length < 2) {
+                     System.out.println("Usage: java GreetingClient <server> <port>");
+                     return;
+                 }
 
-                                int menuChoice = Integer.parseInt(userInput.readLine());
-                                outToServer.writeUTF(String.valueOf(menuChoice));
+                 String serverName = args[0];
+                 int port;
 
-                                switch (menuChoice) {
-                                    case 1:
-                                        handleRideRequest();
-                                        break;
-                                    case 2:
-                                        System.out.println("Checking ride status...");
-                                        break;
-                                    case 3:
-                                        handleAcceptBid();
-                                        break;
-                                    case 4:
-                                        System.out.println("Disconnecting...");
-                                        running = false;
-                                        break;
-                                    default:
-                                        System.out.println("Invalid choice. Please try again.");
-                                }
-                            }
-                        } catch (IOException e) {
-                            System.out.println("Connection error: " + e.getMessage());
-                        }
-                    }
+                 try {
+                     port = Integer.parseInt(args[1]);
+                 } catch (NumberFormatException e) {
+                     System.out.println("Error: Port must be a valid number");
+                     return;
+                 }
 
-                    private static void driverMainLoop() {
-                        try {
-                            while (running) {
-                                System.out.println("\n=== Driver Menu ===");
-                                System.out.println("1. View and bid on ride requests");
-                                System.out.println("2. Update ride status");
-                                System.out.println("3. Disconnect");
-                                System.out.print("Please enter your choice: ");
+                 try {
+                     System.out.println("Connecting to " + serverName + " on port " + port);
+                     client = new Socket(serverName, port);
+                     System.out.println("Just connected to " + client.getRemoteSocketAddress());
 
-                                int menuChoice = Integer.parseInt(userInput.readLine());
-                                outToServer.writeUTF(String.valueOf(menuChoice));
+                     outToServer = new DataOutputStream(client.getOutputStream());
+                     inFromServer = new DataInputStream(client.getInputStream());
+                     userInput = new BufferedReader(new InputStreamReader(System.in));
 
-                                switch (menuChoice) {
-                                    case 1:
-                                        handleOfferFare();
-                                        break;
-                                    case 2:
-                                        handleUpdateRideStatus();
-                                        break;
-                                    case 3:
-                                        System.out.println("Disconnecting...");
-                                        running = false;
-                                        break;
-                                    default:
-                                        System.out.println("Invalid choice. Please try again.");
-                                }
-                            }
-                        } catch (IOException e) {
-                            System.out.println("Connection error: " + e.getMessage());
-                        }
-                    }
+                     // Display main menu
+                     Menu mainMenu = Menu.createMainMenu(userInput);
+                     int mainChoice = mainMenu.display();
+                     outToServer.writeUTF(String.valueOf(mainChoice));
 
-                    private static boolean handleCustomer() throws IOException {
-                        System.out.println("You chose Customer");
-                        System.out.println("Please choose whether you want to Sign up or Log in by either entering 1 or 2");
-                        System.out.println("1. Sign up");
-                        System.out.println("2. Log in");
+                     if (mainChoice == 1) {
+                         isCustomer = true;
+                         if (handleCustomer()) {
+                             Thread listenerThread = new Thread(new ServerListener());
+                             listenerThread.setDaemon(true);
+                             listenerThread.start();
+                             customerMainLoop();
+                         }
+                     } else if (mainChoice == 2) {
+                         isCustomer = false;
+                         if (handleDriver()) {
+                             Thread listenerThread = new Thread(new ServerListener());
+                             listenerThread.setDaemon(true);
+                             listenerThread.start();
+                             driverMainLoop();
+                         }
+                     } else {
+                         System.out.println("Invalid choice. Exiting.");
+                     }
 
-                        int choice = Integer.parseInt(userInput.readLine());
-                        outToServer.writeUTF(String.valueOf(choice));
+                 } catch (IOException e) {
+                     e.printStackTrace();
+                 } finally {
+                     cleanup();
+                 }
+             }
 
-                        if (choice == 1) {
-                            return handleSignup(true);
-                        } else if (choice == 2) {
-                            return handleLogin(true);
-                        } else {
-                            System.out.println("Invalid choice. Exiting.");
-                            return false;
-                        }
-                    }
+             private static void customerMainLoop() {
+                 try {
+                     Menu customerMenu = Menu.createCustomerMenu(userInput);
+                     while (running) {
+                         int menuChoice = customerMenu.display();
+                         outToServer.writeUTF(String.valueOf(menuChoice));
 
-                    private static boolean handleDriver() throws IOException {
-                        System.out.println("You chose Driver");
-                        System.out.println("Please choose whether you want to Sign up or Log in by either entering 1 or 2");
-                        System.out.println("1. Sign up");
-                        System.out.println("2. Log in");
+                         switch (menuChoice) {
+                             case 1:
+                                 handleRideRequest();
+                                 break;
+                             case 2:
+                                 System.out.println("Checking ride status...");
+                                 break;
+                             case 3:
+                                 handleAcceptBid();
+                                 break;
+                             case 4:
+                                 System.out.println("Disconnecting...");
+                                 running = false;
+                                 break;
+                             default:
+                                 System.out.println("Invalid choice. Please try again.");
+                         }
+                     }
+                 } catch (IOException e) {
+                     System.out.println("Connection error: " + e.getMessage());
+                 }
+             }
 
-                        int choice = Integer.parseInt(userInput.readLine());
-                        outToServer.writeUTF(String.valueOf(choice));
+             private static void driverMainLoop() {
+                 try {
+                     Menu driverMenu = Menu.createDriverMenu(userInput);
+                     while (running) {
+                         int menuChoice = driverMenu.display();
+                         outToServer.writeUTF(String.valueOf(menuChoice));
 
-                        if (choice == 1) {
-                            return handleSignup(false);
-                        } else if (choice == 2) {
-                            return handleLogin(false);
-                        } else {
-                            System.out.println("Invalid choice. Exiting.");
-                            return false;
-                        }
-                    }
+                         switch (menuChoice) {
+                             case 1:
+                                 handleOfferFare();
+                                 break;
+                             case 2:
+                                 handleUpdateRideStatus();
+                                 break;
+                             case 3:
+                                 System.out.println("Disconnecting...");
+                                 running = false;
+                                 break;
+                             default:
+                                 System.out.println("Invalid choice. Please try again.");
+                         }
+                     }
+                 } catch (IOException e) {
+                     System.out.println("Connection error: " + e.getMessage());
+                 }
+             }
+
+             private static boolean handleCustomer() throws IOException {
+                 System.out.println("You chose Customer");
+                 Menu authMenu = Menu.createAuthMenu(userInput);
+                 int choice = authMenu.display();
+                 outToServer.writeUTF(String.valueOf(choice));
+
+                 if (choice == 1) {
+                     return handleSignup(true);
+                 } else if (choice == 2) {
+                     return handleLogin(true);
+                 } else {
+                     System.out.println("Invalid choice. Exiting.");
+                     return false;
+                 }
+             }
+
+             private static boolean handleDriver() throws IOException {
+                 System.out.println("You chose Driver");
+                 Menu authMenu = Menu.createAuthMenu(userInput);
+                 int choice = authMenu.display();
+                 outToServer.writeUTF(String.valueOf(choice));
+
+                 if (choice == 1) {
+                     return handleSignup(false);
+                 } else if (choice == 2) {
+                     return handleLogin(false);
+                 } else {
+                     System.out.println("Invalid choice. Exiting.");
+                     return false;
+                 }
+             }
+
+             private static void handleUpdateRideStatus() {
+                 try {
+                     String statusMessage = inFromServer.readUTF();
+
+                     if (statusMessage.startsWith("INFO: You have no active ride")) {
+                         System.out.println(statusMessage);
+                         return;
+                     }
+
+                     if (statusMessage.startsWith("RIDE_STATUS_MENU:")) {
+                         String currentStatus = statusMessage.substring("RIDE_STATUS_MENU:".length());
+                         System.out.println(currentStatus);
+
+                         Menu statusMenu = Menu.createRideStatusMenu(userInput);
+                         int choice = statusMenu.display();
+                         outToServer.writeUTF(String.valueOf(choice));
+
+                         String response = inFromServer.readUTF();
+                         System.out.println(response);
+                     }
+                 } catch (IOException e) {
+                     System.out.println("Error updating ride status: " + e.getMessage());
+                 }
+             }
 
                     private static boolean handleSignup(boolean isCustomer) throws IOException {
                         System.out.println("You chose to Sign up");
@@ -280,7 +331,7 @@
                         }
                     }
 
-private static void handleAcceptBid() {
+                    private static void handleAcceptBid() {
                         try {
                             if (receivedBids.isEmpty()) {
                                 System.out.println("No bids have been received yet.");
@@ -331,37 +382,8 @@ private static void handleAcceptBid() {
                         }
                     }
 
-                    private static void handleUpdateRideStatus() {
-                        try {
-                            // Server will send current ride status
-                            String statusMessage = inFromServer.readUTF();
 
-                            if (statusMessage.startsWith("INFO: You have no active ride")) {
-                                System.out.println(statusMessage);
-                                return;
-                            }
-
-                            if (statusMessage.startsWith("RIDE_STATUS_MENU:")) {
-                                String currentStatus = statusMessage.substring("RIDE_STATUS_MENU:".length());
-                                System.out.println(currentStatus);
-                                System.out.println("\nUpdate ride status:");
-                                System.out.println("1. Start Ride");
-                                System.out.println("2. Complete Ride");
-                                System.out.println("3. Cancel");
-                                System.out.print("Enter your choice: ");
-
-                                String choice = userInput.readLine();
-                                outToServer.writeUTF(choice);
-
-                                String response = inFromServer.readUTF();
-                                System.out.println(response);
-                            }
-                        } catch (IOException e) {
-                            System.out.println("Error updating ride status: " + e.getMessage());
-                        }
-                    }
-
-private static void handleOfferFare() {
+                    private static void handleOfferFare() {
     try {
         System.out.println("Checking your availability status...");
 
@@ -438,7 +460,7 @@ private static void handleOfferFare() {
                     }
 
                     // Listener thread to handle incoming messages from server
-static class ServerListener implements Runnable {
+                    static class ServerListener implements Runnable {
     @Override
     public void run() {
         try {

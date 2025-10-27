@@ -381,22 +381,21 @@ import java.io.*;
 
                                         private void processRideRequest() throws IOException {
                                             try {
-
-
+                                                // Read all client input first (client sends these before waiting for response)
                                                 String pickupLocation = readNonEmptyString();
                                                 String dropLocation = readNonEmptyString();
                                                 String customerFare = readNonEmptyString();
 
-                                                String rideId = "RIDE" + rideIdCounter.getAndIncrement();
-                                                Ride newRide = new Ride(rideId, pickupLocation, dropLocation, username, customerFare);
-                                                newRide.putRide(newRide);
-
-                                                // Check if any drivers are registered in the system
+                                                // THEN check if any drivers are registered
                                                 if (Driver.dcredentials.isEmpty()) {
                                                     out.writeUTF("FAILURE: No available drivers at the moment. Please try again later.");
                                                     System.out.println("Ride request rejected: No drivers registered in the system");
                                                     return;
                                                 }
+
+                                                String rideId = "RIDE" + rideIdCounter.getAndIncrement();
+                                                Ride newRide = new Ride(rideId, pickupLocation, dropLocation, username, customerFare);
+                                                newRide.putRide(newRide);
 
                                                 out.writeUTF("SUCCESS: Ride request created with ID " + rideId +
                                                         ". Pickup: " + pickupLocation + ", Drop-off: " + dropLocation +
@@ -410,7 +409,6 @@ import java.io.*;
                                                 System.out.println("Error processing ride request for customer " + username + ": " + e.getMessage());
                                             }
                                         }
-
                                         private void viewRideStatus() throws IOException {
                                             Ride activeRide = null;
                                             for (Ride ride : Ride.rides.values()) {

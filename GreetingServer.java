@@ -381,30 +381,33 @@ import java.io.*;
 
                                         private void processRideRequest() throws IOException {
                                             try {
+                                                // Check if any drivers are registered in the system
+                                                if (Driver.dcredentials.isEmpty()) {
+                                                    out.writeUTF("FAILURE: No available drivers at the moment. Please try again later.");
+                                                    System.out.println("Ride request rejected: No drivers registered in the system");
+                                                    return;
+                                                }
+
                                                 String pickupLocation = readNonEmptyString();
                                                 String dropLocation = readNonEmptyString();
                                                 String customerFare = readNonEmptyString();
 
                                                 String rideId = "RIDE" + rideIdCounter.getAndIncrement();
-                                                Ride ride = new Ride(rideId, pickupLocation, dropLocation, username, customerFare);
-                                                ride.putRide(ride);
+                                                Ride newRide = new Ride(rideId, pickupLocation, dropLocation, username, customerFare);
+                                                newRide.putRide(newRide);
 
-                                                System.out.println("Processing customer menu selection: 1");
-                                                System.out.println("Client chose to Request a Ride");
-                                                System.out.println("Received Ride request: ID: " + rideId +
-                                                        ", Pickup: " + pickupLocation +
-                                                        ", Dropoff: " + dropLocation +
-                                                        ", Customer: " + username +
-                                                        ", Suggested fare: " + customerFare);
+                                                out.writeUTF("SUCCESS: Ride request created with ID " + rideId +
+                                                        ". Pickup: " + pickupLocation + ", Drop-off: " + dropLocation +
+                                                        ", Your fare: $" + customerFare + ". Waiting for driver bids...");
 
-                                                out.writeUTF("SUCCESS: Ride request posted with ID: " + rideId +
-                                                        ". Suggested fare: $" + customerFare +
-                                                        ". Waiting for driver bids.");
+                                                System.out.println("Customer " + username + " requested ride " + rideId +
+                                                        " from " + pickupLocation + " to " + dropLocation +
+                                                        " with fare $" + customerFare);
                                             } catch (IOException e) {
-                                                out.writeUTF("FAILURE: Invalid input - all fields are required");
+                                                out.writeUTF("FAILURE: Error processing ride request - " + e.getMessage());
+                                                System.out.println("Error processing ride request for customer " + username + ": " + e.getMessage());
                                             }
                                         }
-
                                         private void viewRideStatus() throws IOException {
                                             Ride activeRide = null;
                                             for (Ride ride : Ride.rides.values()) {

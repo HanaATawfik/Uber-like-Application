@@ -379,16 +379,15 @@ import java.io.*;
                                             }
                                         }
 
-                                        private void processRideRequest() throws IOException {
+                                    private void processRideRequest() throws IOException {
                                             try {
-                                                // Read all client input first (client sends these before waiting for response)
                                                 String pickupLocation = readNonEmptyString();
                                                 String dropLocation = readNonEmptyString();
                                                 String customerFare = readNonEmptyString();
 
-                                                // THEN check if any drivers are registered
                                                 if (Driver.dcredentials.isEmpty()) {
                                                     out.writeUTF("FAILURE: No drivers registered in the system. Please try again later.");
+                                                    out.flush(); // Force immediate send
                                                     System.out.println("Ride request rejected: No drivers registered in the system");
                                                     return;
                                                 }
@@ -400,42 +399,17 @@ import java.io.*;
                                                 out.writeUTF("SUCCESS: Ride request created with ID " + rideId +
                                                         ". Pickup: " + pickupLocation + ", Drop-off: " + dropLocation +
                                                         ", Your fare: $" + customerFare + ". Waiting for driver bids...");
+                                                out.flush(); // Force immediate send
 
                                                 System.out.println("Customer " + username + " requested ride " + rideId +
                                                         " from " + pickupLocation + " to " + dropLocation +
                                                         " with fare $" + customerFare);
                                             } catch (IOException e) {
                                                 out.writeUTF("FAILURE: Error processing ride request - " + e.getMessage());
+                                                out.flush();
                                                 System.out.println("Error processing ride request for customer " + username + ": " + e.getMessage());
                                             }
-                                        }                                        private void viewRideStatus() throws IOException {
-                                            Ride activeRide = null;
-                                            for (Ride ride : Ride.rides.values()) {
-                                                if (ride.getCustomerUsername().equals(username) &&
-                                                        !ride.getStatus().equals("COMPLETED")) {
-                                                    activeRide = ride;
-                                                    break;
-                                                }
-                                            }
-
-                                            if (activeRide == null) {
-                                                out.writeUTF("INFO: You have no active rides.");
-                                            } else {
-                                                StringBuilder status = new StringBuilder();
-                                                status.append("INFO: Ride ").append(activeRide.getRideId())
-                                                        .append(" - Status: ").append(activeRide.getStatus())
-                                                        .append(", From: ").append(activeRide.getPickupLocation())
-                                                        .append(" To: ").append(activeRide.getDropLocation());
-
-                                                if (activeRide.getDriverUsername() != null) {
-                                                    status.append(", Driver: ").append(activeRide.getDriverUsername());
-                                                }
-
-                                                status.append(", Bids received: ").append(activeRide.getBids().size());
-                                                out.writeUTF(status.toString());
-                                            }
                                         }
-
                                         private void acceptDriverBid() throws IOException {
                                             try {
                                                 String driverUsername = readNonEmptyString();
@@ -660,6 +634,9 @@ import java.io.*;
                                             } catch (IOException e) {
                                                 e.printStackTrace();
                                             }
+                                        }
+
+                                        public void viewRideStatus() {
                                         }
                                     }
 

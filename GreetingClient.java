@@ -276,14 +276,16 @@ import java.io.*;
                                             outToServer.writeUTF(pickupLocation);
                                             outToServer.writeUTF(dropLocation);
                                             outToServer.writeUTF(fare);
+                                            outToServer.flush(); // Ensure data is sent immediately
 
+                                            // Read and display the server's response
                                             String response = inFromServer.readUTF();
                                             System.out.println(response);
+
                                         } catch (IOException e) {
                                             System.out.println("Error requesting ride: " + e.getMessage());
                                         }
                                     }
-
                                     private static void handleViewRideStatus() {
                                         try {
                                             String statusMessage = inFromServer.readUTF();

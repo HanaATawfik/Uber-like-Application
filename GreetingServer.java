@@ -379,38 +379,37 @@ import java.io.*;
                                             }
                                         }
 
-                                    private void processRideRequest() throws IOException {
-                                            try {
-                                                String pickupLocation = readNonEmptyString();
-                                                String dropLocation = readNonEmptyString();
-                                                String customerFare = readNonEmptyString();
+                                        private void processRideRequest() throws IOException {
+                                        try {
+                                            String pickupLocation = readNonEmptyString();
+                                            String dropLocation = readNonEmptyString();
+                                            String customerFare = readNonEmptyString();
 
-                                                if (Driver.dcredentials.isEmpty()) {
-                                                    System.out.println("Ride request rejected: No drivers registered in the system");
-                                                    out.flush(); // Force immediate send
-                                                    out.writeUTF("FAILURE: No drivers registered in the system. Please try again later.");
-                                                    return;
-                                                }
-
-                                                String rideId = "RIDE" + rideIdCounter.getAndIncrement();
-                                                Ride newRide = new Ride(rideId, pickupLocation, dropLocation, username, customerFare);
-                                                newRide.putRide(newRide);
-
-                                                out.writeUTF("SUCCESS: Ride request created with ID " + rideId +
-                                                        ". Pickup: " + pickupLocation + ", Drop-off: " + dropLocation +
-                                                        ", Your fare: $" + customerFare + ". Waiting for driver bids...");
-                                                out.flush(); // Force immediate send
-
-                                                System.out.println("Customer " + username + " requested ride " + rideId +
-                                                        " from " + pickupLocation + " to " + dropLocation +
-                                                        " with fare $" + customerFare);
-                                            } catch (IOException e) {
-                                                out.writeUTF("FAILURE: Error processing ride request - " + e.getMessage());
-                                                out.flush();
-                                                System.out.println("Error processing ride request for customer " + username + ": " + e.getMessage());
+                                            if (Driver.dcredentials.isEmpty()) {
+                                                out.writeUTF("FAILURE: No drivers registered in the system. Please try again later.");
+                                                out.flush(); // Uncomment and place AFTER writeUTF
+                                                System.out.println("Ride request rejected: No drivers registered in the system");
+                                                return;
                                             }
+
+                                            String rideId = "RIDE" + rideIdCounter.getAndIncrement();
+                                            Ride newRide = new Ride(rideId, pickupLocation, dropLocation, username, customerFare);
+                                            newRide.putRide(newRide);
+
+                                            out.writeUTF("SUCCESS: Ride request created with ID " + rideId +
+                                                    ". Pickup: " + pickupLocation + ", Drop-off: " + dropLocation +
+                                                    ", Your fare: $" + customerFare + ". Waiting for driver bids...");
+                                            out.flush();
+
+                                            System.out.println("Customer " + username + " requested ride " + rideId +
+                                                    " from " + pickupLocation + " to " + dropLocation +
+                                                    " with fare $" + customerFare);
+                                        } catch (IOException e) {
+                                            out.writeUTF("FAILURE: Error processing ride request - " + e.getMessage());
+                                            out.flush();
+                                            System.out.println("Error processing ride request for customer " + username + ": " + e.getMessage());
                                         }
-                                        private void acceptDriverBid() throws IOException {
+                                    }                                        private void acceptDriverBid() throws IOException {
                                             try {
                                                 String driverUsername = readNonEmptyString();
 

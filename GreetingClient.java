@@ -360,12 +360,8 @@ public class GreetingClient {
         try {
             if (receivedBids.isEmpty()) {
                 System.out.println("No bids received yet.");
-                // Still need to read server response for this menu choice
-                String response = readSyncResponse();
-                if (response != null) {
-                    System.out.println(response);
-                }
-                return;
+                // Don't try to read server response - server doesn't send one for this
+                return; // Return to menu immediately
             }
 
             System.out.println("\n=== Received Bids ===");
@@ -381,12 +377,17 @@ public class GreetingClient {
                 bidIndex = Integer.parseInt(choice) - 1;
             } catch (NumberFormatException e) {
                 System.out.println("Invalid input. Please enter a number.");
-                return;
+                return; // Return to menu
+            }
+
+            if (bidIndex == -1) {
+                System.out.println("Bid acceptance cancelled.");
+                return; // Return to menu
             }
 
             if (bidIndex < 0 || bidIndex >= receivedBids.size()) {
-                System.out.println("Invalid choice or cancelled.");
-                return;
+                System.out.println("Invalid choice.");
+                return; // Return to menu
             }
 
             String[] selectedBid = receivedBids.get(bidIndex);
@@ -403,11 +404,13 @@ public class GreetingClient {
                     receivedBids.clear();
                 }
             }
+
+            // Function ends here and returns to customerMainLoop() which shows menu
         } catch (IOException e) {
             System.out.println("Error accepting bid: " + e.getMessage());
+            // Returns to menu after error
         }
     }
-
     private static void handleOfferFare() {
         try {
             System.out.println("Checking your availability status...");

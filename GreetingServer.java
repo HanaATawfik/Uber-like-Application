@@ -386,9 +386,9 @@ import java.io.*;
                                                 String customerFare = readNonEmptyString();
 
                                                 if (Driver.dcredentials.isEmpty()) {
-                                                    out.writeUTF("FAILURE: No drivers registered in the system. Please try again later.");
-                                                    out.flush(); // Force immediate send
                                                     System.out.println("Ride request rejected: No drivers registered in the system");
+                                                    out.flush(); // Force immediate send
+                                                    out.writeUTF("FAILURE: No drivers registered in the system. Please try again later.");
                                                     return;
                                                 }
 

@@ -388,7 +388,7 @@ import java.io.*;
 
                                                 // THEN check if any drivers are registered
                                                 if (Driver.dcredentials.isEmpty()) {
-                                                    out.writeUTF("FAILURE: No available drivers at the moment. Please try again later.");
+                                                    out.writeUTF("FAILURE: No drivers registered in the system. Please try again later.");
                                                     System.out.println("Ride request rejected: No drivers registered in the system");
                                                     return;
                                                 }
@@ -408,8 +408,7 @@ import java.io.*;
                                                 out.writeUTF("FAILURE: Error processing ride request - " + e.getMessage());
                                                 System.out.println("Error processing ride request for customer " + username + ": " + e.getMessage());
                                             }
-                                        }
-                                        private void viewRideStatus() throws IOException {
+                                        }                                        private void viewRideStatus() throws IOException {
                                             Ride activeRide = null;
                                             for (Ride ride : Ride.rides.values()) {
                                                 if (ride.getCustomerUsername().equals(username) &&
